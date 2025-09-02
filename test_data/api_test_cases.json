@@ -1,0 +1,360 @@
+{
+  "chat_completions_tests": [
+    {
+      "name": "销售咨询测试",
+      "description": "测试销售相关的聊天完成接口",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "我想了解你们的产品价格和功能特性"
+          }
+        ],
+        "model": "multi-agent-service",
+        "user_id": "test_user_001",
+        "context": {
+          "session_id": "session_001",
+          "source": "web_chat"
+        }
+      },
+      "expected_response": {
+        "status_code": 200,
+        "agent_type": "sales",
+        "contains_keywords": ["产品", "价格", "功能"]
+      }
+    },
+    {
+      "name": "技术支持测试",
+      "description": "测试技术支持相关的聊天完成接口",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "我的设备出现故障，无法正常启动，请帮助诊断问题"
+          }
+        ],
+        "model": "multi-agent-service",
+        "user_id": "test_user_002",
+        "context": {
+          "session_id": "session_002",
+          "device_type": "industrial_equipment"
+        }
+      },
+      "expected_response": {
+        "status_code": 200,
+        "agent_type": "field_service",
+        "contains_keywords": ["故障", "诊断", "解决"]
+      }
+    },
+    {
+      "name": "客服投诉测试",
+      "description": "测试客服投诉处理的聊天完成接口",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "我对你们的服务非常不满意，要求退款并投诉"
+          }
+        ],
+        "model": "multi-agent-service",
+        "user_id": "test_user_003",
+        "context": {
+          "session_id": "session_003",
+          "priority": "high"
+        }
+      },
+      "expected_response": {
+        "status_code": 200,
+        "agent_type": "customer_support",
+        "contains_keywords": ["理解", "解决", "帮助"]
+      }
+    }
+  ],
+  "agent_routing_tests": [
+    {
+      "name": "销售意图路由测试",
+      "description": "测试销售意图的智能体路由",
+      "request": {
+        "content": "请介绍一下你们的产品线和价格体系",
+        "user_id": "test_user_004",
+        "context": {
+          "source": "website",
+          "page": "products"
+        },
+        "priority": "normal"
+      },
+      "expected_response": {
+        "status_code": 200,
+        "selected_agent": "sales",
+        "confidence": ">= 0.7"
+      }
+    },
+    {
+      "name": "技术支持路由测试",
+      "description": "测试技术支持意图的智能体路由",
+      "request": {
+        "content": "设备安装后无法连接网络，需要技术支持",
+        "user_id": "test_user_005",
+        "context": {
+          "device_model": "XYZ-2000",
+          "installation_date": "2025-09-01"
+        },
+        "priority": "high"
+      },
+      "expected_response": {
+        "status_code": 200,
+        "selected_agent": "field_service",
+        "confidence": ">= 0.8"
+      }
+    },
+    {
+      "name": "管理决策路由测试",
+      "description": "测试管理决策意图的智能体路由",
+      "request": {
+        "content": "需要制定新的市场策略和资源配置方案",
+        "user_id": "manager_001",
+        "context": {
+          "department": "strategy",
+          "role": "manager"
+        },
+        "priority": "high"
+      },
+      "expected_response": {
+        "status_code": 200,
+        "selected_agent": "manager",
+        "confidence": ">= 0.7"
+      }
+    },
+    {
+      "name": "复杂任务协调路由测试",
+      "description": "测试需要多智能体协作的复杂任务路由",
+      "request": {
+        "content": "我们需要处理一个涉及销售、技术和管理多个方面的大型项目",
+        "user_id": "project_manager_001",
+        "context": {
+          "project_type": "enterprise_solution",
+          "complexity": "high"
+        },
+        "priority": "critical"
+      },
+      "expected_response": {
+        "status_code": 200,
+        "selected_agent": "coordinator",
+        "requires_collaboration": true
+      }
+    }
+  ],
+  "workflow_execution_tests": [
+    {
+      "name": "客户投诉处理工作流测试",
+      "description": "测试客户投诉处理的完整工作流",
+      "request": {
+        "workflow_type": "sequential",
+        "workflow_name": "customer_complaint_handling",
+        "task_description": "客户投诉产品质量问题，要求退换货",
+        "context": {
+          "customer_id": "CUST_001",
+          "product_id": "PROD_XYZ",
+          "complaint_type": "quality_issue"
+        },
+        "priority": "high"
+      },
+      "expected_response": {
+        "status_code": 200,
+        "workflow_id": "string",
+        "status": "started",
+        "participating_agents": ["customer_support", "field_service", "manager"]
+      }
+    },
+    {
+      "name": "产品咨询并行工作流测试",
+      "description": "测试产品咨询的并行处理工作流",
+      "request": {
+        "workflow_type": "parallel",
+        "workflow_name": "product_consultation",
+        "task_description": "客户咨询新产品的技术规格和价格信息",
+        "context": {
+          "product_category": "industrial_automation",
+          "customer_segment": "enterprise"
+        },
+        "priority": "normal"
+      },
+      "expected_response": {
+        "status_code": 200,
+        "workflow_id": "string",
+        "status": "started",
+        "participating_agents": ["sales", "field_service"]
+      }
+    },
+    {
+      "name": "复杂项目分层工作流测试",
+      "description": "测试复杂项目的分层管理工作流",
+      "request": {
+        "workflow_type": "hierarchical",
+        "workflow_name": "complex_project_management",
+        "task_description": "大型企业客户的定制化解决方案项目",
+        "context": {
+          "project_scope": "enterprise_wide",
+          "timeline": "6_months",
+          "budget": "high"
+        },
+        "priority": "critical"
+      },
+      "expected_response": {
+        "status_code": 200,
+        "workflow_id": "string",
+        "status": "started",
+        "coordinator": "coordinator",
+        "teams": ["sales_team", "technical_team", "management_team"]
+      }
+    }
+  ],
+  "agent_status_tests": [
+    {
+      "name": "获取所有智能体状态",
+      "description": "测试获取所有智能体的状态信息",
+      "request": {
+        "method": "GET",
+        "url": "/api/v1/agents/status"
+      },
+      "expected_response": {
+        "status_code": 200,
+        "agents_count": ">= 5",
+        "all_agents_have_status": true
+      }
+    },
+    {
+      "name": "按类型筛选智能体状态",
+      "description": "测试按智能体类型筛选状态信息",
+      "request": {
+        "method": "GET",
+        "url": "/api/v1/agents/status",
+        "params": {
+          "agent_types": "sales,customer_support"
+        }
+      },
+      "expected_response": {
+        "status_code": 200,
+        "filtered_agents_only": true,
+        "agent_types": ["sales", "customer_support"]
+      }
+    },
+    {
+      "name": "包含性能指标的智能体状态",
+      "description": "测试获取包含性能指标的智能体状态",
+      "request": {
+        "method": "GET",
+        "url": "/api/v1/agents/status",
+        "params": {
+          "include_metrics": "true"
+        }
+      },
+      "expected_response": {
+        "status_code": 200,
+        "includes_metrics": true,
+        "metrics_fields": ["response_time", "success_rate", "load"]
+      }
+    }
+  ],
+  "monitoring_tests": [
+    {
+      "name": "获取系统监控指标",
+      "description": "测试获取系统监控指标接口",
+      "request": {
+        "method": "GET",
+        "url": "/api/v1/monitoring/metrics"
+      },
+      "expected_response": {
+        "status_code": 200,
+        "includes_system_metrics": true,
+        "includes_api_metrics": true,
+        "includes_agent_metrics": true
+      }
+    },
+    {
+      "name": "健康检查测试",
+      "description": "测试系统健康检查接口",
+      "request": {
+        "method": "GET",
+        "url": "/api/v1/health"
+      },
+      "expected_response": {
+        "status_code": 200,
+        "status": "healthy",
+        "includes_component_status": true
+      }
+    }
+  ],
+  "error_handling_tests": [
+    {
+      "name": "无效请求格式测试",
+      "description": "测试无效请求格式的错误处理",
+      "request": {
+        "messages": "invalid_format",
+        "model": "multi-agent-service"
+      },
+      "expected_response": {
+        "status_code": 400,
+        "error_code": "VALIDATION_ERROR",
+        "error_message": "string"
+      }
+    },
+    {
+      "name": "空内容请求测试",
+      "description": "测试空内容请求的错误处理",
+      "request": {
+        "content": "",
+        "user_id": "test_user"
+      },
+      "expected_response": {
+        "status_code": 400,
+        "error_code": "EMPTY_CONTENT",
+        "error_message": "string"
+      }
+    },
+    {
+      "name": "不存在的工作流测试",
+      "description": "测试请求不存在工作流的错误处理",
+      "request": {
+        "workflow_type": "sequential",
+        "workflow_name": "non_existent_workflow",
+        "task_description": "test task"
+      },
+      "expected_response": {
+        "status_code": 404,
+        "error_code": "WORKFLOW_NOT_FOUND",
+        "error_message": "string"
+      }
+    }
+  ],
+  "performance_tests": [
+    {
+      "name": "并发请求测试",
+      "description": "测试系统的并发处理能力",
+      "test_config": {
+        "concurrent_requests": 10,
+        "request_type": "chat_completion",
+        "duration_seconds": 30
+      },
+      "expected_metrics": {
+        "success_rate": ">= 0.95",
+        "average_response_time": "<= 5.0",
+        "max_response_time": "<= 10.0"
+      }
+    },
+    {
+      "name": "负载测试",
+      "description": "测试系统在高负载下的表现",
+      "test_config": {
+        "concurrent_requests": 50,
+        "request_type": "agent_routing",
+        "duration_seconds": 60
+      },
+      "expected_metrics": {
+        "success_rate": ">= 0.90",
+        "average_response_time": "<= 8.0",
+        "system_stability": true
+      }
+    }
+  ]
+}

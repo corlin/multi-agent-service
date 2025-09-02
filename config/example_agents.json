@@ -1,0 +1,118 @@
+{
+  "agents": {
+    "sales_agent": {
+      "enabled": true,
+      "name": "销售代表智能体",
+      "description": "专门处理销售咨询、产品介绍和报价等业务",
+      "model": "qwen-turbo",
+      "max_tokens": 2000,
+      "temperature": 0.7,
+      "capabilities": [
+        "产品介绍",
+        "价格咨询",
+        "销售流程指导",
+        "客户关系管理",
+        "合同协商"
+      ],
+      "prompt_template": "你是一名专业的销售代表，擅长产品介绍和客户沟通。请以友好、专业的态度回答客户的销售相关问题。",
+      "max_load": 10,
+      "priority": "normal"
+    },
+    "customer_support_agent": {
+      "enabled": true,
+      "name": "客服专员智能体",
+      "description": "提供客户支持服务，处理客户咨询和问题解决",
+      "model": "deepseek-chat",
+      "max_tokens": 1500,
+      "temperature": 0.5,
+      "capabilities": [
+        "问题诊断",
+        "解决方案提供",
+        "客户安抚",
+        "技术支持",
+        "投诉处理"
+      ],
+      "prompt_template": "你是一名耐心的客服专员，专门帮助客户解决问题。请以同理心和专业知识为客户提供帮助。",
+      "max_load": 15,
+      "priority": "high"
+    },
+    "manager_agent": {
+      "enabled": true,
+      "name": "公司管理者智能体",
+      "description": "处理管理决策和战略规划相关事务",
+      "model": "glm-4",
+      "max_tokens": 2500,
+      "temperature": 0.3,
+      "capabilities": [
+        "决策分析",
+        "资源配置",
+        "战略规划",
+        "政策制定",
+        "团队管理"
+      ],
+      "prompt_template": "你是一名经验丰富的管理者，具备战略思维和决策能力。请从管理角度分析问题并提供建议。",
+      "max_load": 5,
+      "priority": "high"
+    },
+    "field_service_agent": {
+      "enabled": true,
+      "name": "现场服务人员智能体",
+      "description": "处理现场服务和技术支持相关事务",
+      "model": "qwen-plus",
+      "max_tokens": 1800,
+      "temperature": 0.4,
+      "capabilities": [
+        "故障诊断",
+        "维修指导",
+        "服务调度",
+        "技术咨询",
+        "设备维护"
+      ],
+      "prompt_template": "你是一名专业的现场服务工程师，具备丰富的技术经验。请提供准确的技术指导和解决方案。",
+      "max_load": 8,
+      "priority": "normal"
+    },
+    "coordinator_agent": {
+      "enabled": true,
+      "name": "智能体总协调员",
+      "description": "统筹管理其他智能体，制定协作策略",
+      "model": "gpt-4",
+      "max_tokens": 3000,
+      "temperature": 0.2,
+      "capabilities": [
+        "任务分解",
+        "资源调度",
+        "冲突解决",
+        "协作管理",
+        "决策协调"
+      ],
+      "prompt_template": "你是智能体协调员，负责统筹管理团队中的其他智能体。请分析任务需求，制定最优的协作策略。",
+      "max_load": 3,
+      "priority": "critical"
+    }
+  },
+  "routing_rules": {
+    "default_agent": "customer_support_agent",
+    "confidence_threshold": 0.6,
+    "intent_mapping": {
+      "sales_inquiry": ["sales_agent"],
+      "product_question": ["sales_agent", "field_service_agent"],
+      "technical_support": ["field_service_agent", "customer_support_agent"],
+      "complaint": ["customer_support_agent", "manager_agent"],
+      "management_decision": ["manager_agent", "coordinator_agent"],
+      "complex_task": ["coordinator_agent"]
+    },
+    "collaboration_triggers": {
+      "high_complexity": true,
+      "multiple_domains": true,
+      "escalation_needed": true
+    }
+  },
+  "performance_settings": {
+    "max_concurrent_requests": 50,
+    "request_timeout": 60,
+    "retry_attempts": 3,
+    "circuit_breaker_threshold": 5,
+    "health_check_interval": 30
+  }
+}

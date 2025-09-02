@@ -1,0 +1,271 @@
+{
+  "workflows": {
+    "customer_complaint_handling": {
+      "name": "客户投诉处理流程",
+      "description": "处理客户投诉的标准化工作流程",
+      "type": "sequential",
+      "enabled": true,
+      "steps": [
+        {
+          "step_id": "initial_assessment",
+          "agent_type": "customer_support_agent",
+          "description": "初步评估投诉内容和严重程度",
+          "timeout": 300,
+          "required_capabilities": ["问题诊断", "客户安抚"]
+        },
+        {
+          "step_id": "technical_investigation",
+          "agent_type": "field_service_agent",
+          "description": "技术层面调查问题原因",
+          "timeout": 600,
+          "required_capabilities": ["故障诊断", "技术咨询"],
+          "condition": "technical_issue_detected"
+        },
+        {
+          "step_id": "management_review",
+          "agent_type": "manager_agent",
+          "description": "管理层审查和决策",
+          "timeout": 900,
+          "required_capabilities": ["决策分析", "政策制定"],
+          "condition": "escalation_required"
+        },
+        {
+          "step_id": "solution_implementation",
+          "agent_type": "customer_support_agent",
+          "description": "实施解决方案并跟进",
+          "timeout": 1800,
+          "required_capabilities": ["解决方案提供", "客户安抚"]
+        }
+      ],
+      "success_criteria": {
+        "customer_satisfaction": ">= 4.0",
+        "resolution_time": "<= 3600",
+        "escalation_rate": "<= 0.2"
+      }
+    },
+    "product_consultation": {
+      "name": "产品咨询服务流程",
+      "description": "为客户提供产品咨询和销售支持",
+      "type": "parallel",
+      "enabled": true,
+      "parallel_groups": [
+        {
+          "group_id": "product_info",
+          "agents": [
+            {
+              "agent_type": "sales_agent",
+              "task": "产品介绍和价格咨询",
+              "timeout": 300
+            }
+          ]
+        },
+        {
+          "group_id": "technical_specs",
+          "agents": [
+            {
+              "agent_type": "field_service_agent",
+              "task": "技术规格和兼容性说明",
+              "timeout": 300
+            }
+          ]
+        }
+      ],
+      "aggregation_strategy": "merge_responses",
+      "success_criteria": {
+        "response_completeness": ">= 0.8",
+        "customer_engagement": ">= 0.7"
+      }
+    },
+    "complex_project_management": {
+      "name": "复杂项目管理流程",
+      "description": "多部门协作的复杂项目管理工作流",
+      "type": "hierarchical",
+      "enabled": true,
+      "coordinator": {
+        "agent_type": "coordinator_agent",
+        "responsibilities": [
+          "任务分解",
+          "资源调度",
+          "进度监控",
+          "冲突解决"
+        ]
+      },
+      "teams": [
+        {
+          "team_id": "sales_team",
+          "leader": "sales_agent",
+          "members": ["sales_agent"],
+          "responsibilities": ["市场分析", "客户关系", "合同谈判"]
+        },
+        {
+          "team_id": "technical_team",
+          "leader": "field_service_agent",
+          "members": ["field_service_agent"],
+          "responsibilities": ["技术实施", "质量保证", "技术支持"]
+        },
+        {
+          "team_id": "management_team",
+          "leader": "manager_agent",
+          "members": ["manager_agent"],
+          "responsibilities": ["战略规划", "资源配置", "风险管理"]
+        }
+      ],
+      "coordination_rules": {
+        "decision_escalation": {
+          "threshold": "high_impact",
+          "target": "coordinator_agent"
+        },
+        "conflict_resolution": {
+          "method": "consensus_building",
+          "timeout": 1800
+        },
+        "progress_reporting": {
+          "frequency": "daily",
+          "format": "structured_summary"
+        }
+      },
+      "success_criteria": {
+        "project_completion_rate": ">= 0.95",
+        "budget_adherence": ">= 0.9",
+        "timeline_adherence": ">= 0.85",
+        "stakeholder_satisfaction": ">= 4.2"
+      }
+    },
+    "emergency_response": {
+      "name": "紧急事件响应流程",
+      "description": "处理紧急事件的快速响应工作流",
+      "type": "parallel",
+      "enabled": true,
+      "priority": "critical",
+      "parallel_groups": [
+        {
+          "group_id": "immediate_response",
+          "agents": [
+            {
+              "agent_type": "customer_support_agent",
+              "task": "客户安抚和初步处理",
+              "timeout": 180,
+              "priority": "critical"
+            }
+          ]
+        },
+        {
+          "group_id": "technical_assessment",
+          "agents": [
+            {
+              "agent_type": "field_service_agent",
+              "task": "技术问题评估和临时解决方案",
+              "timeout": 300,
+              "priority": "high"
+            }
+          ]
+        },
+        {
+          "group_id": "management_notification",
+          "agents": [
+            {
+              "agent_type": "manager_agent",
+              "task": "管理层通知和决策支持",
+              "timeout": 240,
+              "priority": "high"
+            }
+          ]
+        }
+      ],
+      "escalation_rules": {
+        "auto_escalate_after": 600,
+        "escalation_target": "coordinator_agent",
+        "notification_channels": ["email", "sms", "slack"]
+      },
+      "success_criteria": {
+        "response_time": "<= 300",
+        "resolution_time": "<= 1800",
+        "customer_impact_minimization": ">= 0.8"
+      }
+    }
+  },
+  "global_settings": {
+    "default_timeout": 1800,
+    "max_concurrent_workflows": 20,
+    "retry_policy": {
+      "max_retries": 3,
+      "backoff_strategy": "exponential",
+      "base_delay": 5
+    },
+    "monitoring": {
+      "performance_tracking": true,
+      "step_timing": true,
+      "resource_usage": true,
+      "success_metrics": true
+    },
+    "notifications": {
+      "workflow_start": false,
+      "workflow_complete": true,
+      "workflow_failed": true,
+      "step_failed": true,
+      "escalation_triggered": true
+    }
+  },
+  "templates": {
+    "simple_sequential": {
+      "name": "简单顺序流程模板",
+      "type": "sequential",
+      "steps": [
+        {
+          "step_id": "step_1",
+          "agent_type": "customer_support_agent",
+          "description": "第一步处理",
+          "timeout": 300
+        },
+        {
+          "step_id": "step_2",
+          "agent_type": "sales_agent",
+          "description": "第二步处理",
+          "timeout": 300
+        }
+      ]
+    },
+    "simple_parallel": {
+      "name": "简单并行流程模板",
+      "type": "parallel",
+      "parallel_groups": [
+        {
+          "group_id": "group_1",
+          "agents": [
+            {
+              "agent_type": "sales_agent",
+              "task": "销售相关处理",
+              "timeout": 300
+            }
+          ]
+        },
+        {
+          "group_id": "group_2",
+          "agents": [
+            {
+              "agent_type": "field_service_agent",
+              "task": "技术相关处理",
+              "timeout": 300
+            }
+          ]
+        }
+      ]
+    },
+    "simple_hierarchical": {
+      "name": "简单分层流程模板",
+      "type": "hierarchical",
+      "coordinator": {
+        "agent_type": "coordinator_agent",
+        "responsibilities": ["任务协调", "进度监控"]
+      },
+      "teams": [
+        {
+          "team_id": "execution_team",
+          "leader": "sales_agent",
+          "members": ["sales_agent", "customer_support_agent"],
+          "responsibilities": ["任务执行"]
+        }
+      ]
+    }
+  }
+}

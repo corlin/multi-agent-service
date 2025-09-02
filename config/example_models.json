@@ -1,0 +1,194 @@
+{
+  "models": {
+    "qwen-turbo": {
+      "provider": "qwen",
+      "model_name": "qwen-turbo",
+      "base_url": "https://dashscope.aliyuncs.com/api/v1",
+      "api_key": "${QWEN_API_KEY}",
+      "enabled": true,
+      "max_tokens": 2000,
+      "temperature": 0.7,
+      "timeout": 30,
+      "retry_attempts": 3,
+      "rate_limit": {
+        "requests_per_minute": 60,
+        "tokens_per_minute": 100000
+      },
+      "cost": {
+        "input_token_cost": 0.0008,
+        "output_token_cost": 0.002
+      }
+    },
+    "qwen-plus": {
+      "provider": "qwen",
+      "model_name": "qwen-plus",
+      "base_url": "https://dashscope.aliyuncs.com/api/v1",
+      "api_key": "${QWEN_API_KEY}",
+      "enabled": true,
+      "max_tokens": 4000,
+      "temperature": 0.5,
+      "timeout": 45,
+      "retry_attempts": 3,
+      "rate_limit": {
+        "requests_per_minute": 30,
+        "tokens_per_minute": 50000
+      },
+      "cost": {
+        "input_token_cost": 0.004,
+        "output_token_cost": 0.012
+      }
+    },
+    "deepseek-chat": {
+      "provider": "deepseek",
+      "model_name": "deepseek-chat",
+      "base_url": "https://api.deepseek.com/v1",
+      "api_key": "${DEEPSEEK_API_KEY}",
+      "enabled": true,
+      "max_tokens": 2000,
+      "temperature": 0.6,
+      "timeout": 30,
+      "retry_attempts": 3,
+      "rate_limit": {
+        "requests_per_minute": 100,
+        "tokens_per_minute": 200000
+      },
+      "cost": {
+        "input_token_cost": 0.0014,
+        "output_token_cost": 0.0028
+      }
+    },
+    "deepseek-coder": {
+      "provider": "deepseek",
+      "model_name": "deepseek-coder",
+      "base_url": "https://api.deepseek.com/v1",
+      "api_key": "${DEEPSEEK_API_KEY}",
+      "enabled": true,
+      "max_tokens": 4000,
+      "temperature": 0.3,
+      "timeout": 45,
+      "retry_attempts": 3,
+      "rate_limit": {
+        "requests_per_minute": 50,
+        "tokens_per_minute": 100000
+      },
+      "cost": {
+        "input_token_cost": 0.0014,
+        "output_token_cost": 0.0028
+      }
+    },
+    "glm-4": {
+      "provider": "zhipu",
+      "model_name": "glm-4",
+      "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "api_key": "${GLM_API_KEY}",
+      "enabled": true,
+      "max_tokens": 3000,
+      "temperature": 0.4,
+      "timeout": 40,
+      "retry_attempts": 3,
+      "rate_limit": {
+        "requests_per_minute": 40,
+        "tokens_per_minute": 80000
+      },
+      "cost": {
+        "input_token_cost": 0.005,
+        "output_token_cost": 0.015
+      }
+    },
+    "glm-3-turbo": {
+      "provider": "zhipu",
+      "model_name": "glm-3-turbo",
+      "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "api_key": "${GLM_API_KEY}",
+      "enabled": true,
+      "max_tokens": 2000,
+      "temperature": 0.7,
+      "timeout": 30,
+      "retry_attempts": 3,
+      "rate_limit": {
+        "requests_per_minute": 60,
+        "tokens_per_minute": 120000
+      },
+      "cost": {
+        "input_token_cost": 0.001,
+        "output_token_cost": 0.003
+      }
+    },
+    "gpt-4": {
+      "provider": "openai",
+      "model_name": "gpt-4",
+      "base_url": "https://api.openai.com/v1",
+      "api_key": "${OPENAI_API_KEY}",
+      "enabled": true,
+      "max_tokens": 4000,
+      "temperature": 0.3,
+      "timeout": 60,
+      "retry_attempts": 3,
+      "rate_limit": {
+        "requests_per_minute": 20,
+        "tokens_per_minute": 40000
+      },
+      "cost": {
+        "input_token_cost": 0.03,
+        "output_token_cost": 0.06
+      }
+    },
+    "gpt-3.5-turbo": {
+      "provider": "openai",
+      "model_name": "gpt-3.5-turbo",
+      "base_url": "https://api.openai.com/v1",
+      "api_key": "${OPENAI_API_KEY}",
+      "enabled": true,
+      "max_tokens": 2000,
+      "temperature": 0.7,
+      "timeout": 30,
+      "retry_attempts": 3,
+      "rate_limit": {
+        "requests_per_minute": 60,
+        "tokens_per_minute": 90000
+      },
+      "cost": {
+        "input_token_cost": 0.0015,
+        "output_token_cost": 0.002
+      }
+    }
+  },
+  "failover_config": {
+    "enabled": true,
+    "strategy": "round_robin",
+    "fallback_models": {
+      "qwen-turbo": ["deepseek-chat", "glm-3-turbo"],
+      "qwen-plus": ["glm-4", "gpt-4"],
+      "deepseek-chat": ["qwen-turbo", "glm-3-turbo"],
+      "deepseek-coder": ["qwen-plus", "gpt-4"],
+      "glm-4": ["gpt-4", "qwen-plus"],
+      "glm-3-turbo": ["qwen-turbo", "deepseek-chat"],
+      "gpt-4": ["glm-4", "qwen-plus"],
+      "gpt-3.5-turbo": ["qwen-turbo", "deepseek-chat"]
+    },
+    "circuit_breaker": {
+      "failure_threshold": 5,
+      "recovery_timeout": 300,
+      "half_open_max_calls": 3
+    }
+  },
+  "load_balancing": {
+    "strategy": "least_loaded",
+    "health_check_interval": 60,
+    "weight_factors": {
+      "response_time": 0.4,
+      "success_rate": 0.3,
+      "current_load": 0.3
+    }
+  },
+  "monitoring": {
+    "metrics_collection": true,
+    "performance_tracking": true,
+    "cost_tracking": true,
+    "alert_thresholds": {
+      "response_time_ms": 5000,
+      "error_rate_percent": 5,
+      "cost_per_hour": 10
+    }
+  }
+}
