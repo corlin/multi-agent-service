@@ -168,3 +168,4 @@ secrets/
 # Runtime files
 *.pid
 *.sock
+data/
