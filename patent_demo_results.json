@@ -1,0 +1,256 @@
+{
+  "demo_info": {
+    "timestamp": "2025-09-10T19:41:32.316000",
+    "total_scenarios": 4,
+    "system_initialized": true
+  },
+  "scenarios": [
+    {
+      "name": "人工智能专利快速检索",
+      "keywords": [
+        "人工智能",
+        "机器学习",
+        "深度学习"
+      ],
+      "analysis_type": "quick_search",
+      "description": "快速检索人工智能相关专利，适合初步了解技术发展"
+    },
+    {
+      "name": "区块链技术全面分析",
+      "keywords": [
+        "区块链",
+        "分布式账本",
+        "智能合约"
+      ],
+      "analysis_type": "comprehensive_analysis",
+      "description": "全面分析区块链技术专利，包括数据收集、搜索增强、深度分析和报告生成"
+    },
+    {
+      "name": "5G通信技术趋势分析",
+      "keywords": [
+        "5G",
+        "通信技术",
+        "无线网络"
+      ],
+      "analysis_type": "trend_analysis",
+      "description": "分析5G通信技术的发展趋势和技术演进"
+    },
+    {
+      "name": "新能源汽车竞争分析",
+      "keywords": [
+        "新能源汽车",
+        "电动汽车",
+        "电池技术"
+      ],
+      "analysis_type": "competitive_analysis",
+      "description": "分析新能源汽车领域的竞争格局和主要参与者"
+    }
+  ],
+  "results": [
+    {
+      "scenario": {
+        "name": "人工智能专利快速检索",
+        "keywords": [
+          "人工智能",
+          "机器学习",
+          "深度学习"
+        ],
+        "analysis_type": "quick_search",
+        "description": "快速检索人工智能相关专利，适合初步了解技术发展"
+      },
+      "request": {
+        "request_id": "98d3cc7c-2b48-4960-8f54-b3b7925baa4f",
+        "user_id": "demo_user",
+        "content": "请进行quick_search，关键词：人工智能, 机器学习, 深度学习",
+        "context": {
+          "demo_scenario": "人工智能专利快速检索",
+          "keywords": [
+            "人工智能",
+            "机器学习",
+            "深度学习"
+          ],
+          "analysis_type": "quick_search",
+          "demo_mode": true
+        },
+        "timestamp": "2025-09-10T19:41:26.281147",
+        "priority": "normal"
+      },
+      "response": {
+        "agent_id": "mock_patent_coordinator",
+        "agent_type": "patent_coordinator",
+        "content": "专利分析演示结果 - 人工智能专利快速检索\n\n关键词: 人工智能, 机器学习, 深度学习\n分析类型: quick_search\n\n模拟分析结果:\n1. 数据收集: 已收集相关专利数据 100 条\n2. 搜索增强: 已获取学术文献和网络信息\n3. 趋势分析: 该技术领域呈现上升趋势\n4. 竞争分析: 识别出主要竞争者 5 家\n5. 报告生成: 已生成完整分析报告\n\n注意: 这是演示模式的模拟结果，实际系统将提供真实的专利分析数据。",
+        "confidence": 0.85,
+        "collaboration_needed": false,
+        "metadata": {
+          "workflow_type": "quick_search",
+          "required_agents": [
+            "patent_data_collection",
+            "patent_search",
+            "patent_analysis",
+            "patent_report"
+          ],
+          "coordination_id": "demo_人工智能专利快速检索",
+          "demo_mode": true
+        }
+      },
+      "execution_time": 0.000498,
+      "timestamp": "2025-09-10T19:41:26.281645",
+      "success": true
+    },
+    {
+      "scenario": {
+        "name": "区块链技术全面分析",
+        "keywords": [
+          "区块链",
+          "分布式账本",
+          "智能合约"
+        ],
+        "analysis_type": "comprehensive_analysis",
+        "description": "全面分析区块链技术专利，包括数据收集、搜索增强、深度分析和报告生成"
+      },
+      "request": {
+        "request_id": "3d5af05c-fb85-45cd-832b-fa28f6fb3b93",
+        "user_id": "demo_user",
+        "content": "请进行comprehensive_analysis，关键词：区块链, 分布式账本, 智能合约",
+        "context": {
+          "demo_scenario": "区块链技术全面分析",
+          "keywords": [
+            "区块链",
+            "分布式账本",
+            "智能合约"
+          ],
+          "analysis_type": "comprehensive_analysis",
+          "demo_mode": true
+        },
+        "timestamp": "2025-09-10T19:41:28.290730",
+        "priority": "normal"
+      },
+      "response": {
+        "agent_id": "mock_patent_coordinator",
+        "agent_type": "patent_coordinator",
+        "content": "专利分析演示结果 - 区块链技术全面分析\n\n关键词: 区块链, 分布式账本, 智能合约\n分析类型: comprehensive_analysis\n\n模拟分析结果:\n1. 数据收集: 已收集相关专利数据 100 条\n2. 搜索增强: 已获取学术文献和网络信息\n3. 趋势分析: 该技术领域呈现上升趋势\n4. 竞争分析: 识别出主要竞争者 5 家\n5. 报告生成: 已生成完整分析报告\n\n注意: 这是演示模式的模拟结果，实际系统将提供真实的专利分析数据。",
+        "confidence": 0.85,
+        "collaboration_needed": false,
+        "metadata": {
+          "workflow_type": "comprehensive_analysis",
+          "required_agents": [
+            "patent_data_collection",
+            "patent_search",
+            "patent_analysis",
+            "patent_report"
+          ],
+          "coordination_id": "demo_区块链技术全面分析",
+          "demo_mode": true
+        }
+      },
+      "execution_time": 0.0,
+      "timestamp": "2025-09-10T19:41:28.291733",
+      "success": true
+    },
+    {
+      "scenario": {
+        "name": "5G通信技术趋势分析",
+        "keywords": [
+          "5G",
+          "通信技术",
+          "无线网络"
+        ],
+        "analysis_type": "trend_analysis",
+        "description": "分析5G通信技术的发展趋势和技术演进"
+      },
+      "request": {
+        "request_id": "fd2791ce-f50e-4fa8-aedc-a7edd47b0b19",
+        "user_id": "demo_user",
+        "content": "请进行trend_analysis，关键词：5G, 通信技术, 无线网络",
+        "context": {
+          "demo_scenario": "5G通信技术趋势分析",
+          "keywords": [
+            "5G",
+            "通信技术",
+            "无线网络"
+          ],
+          "analysis_type": "trend_analysis",
+          "demo_mode": true
+        },
+        "timestamp": "2025-09-10T19:41:30.300383",
+        "priority": "normal"
+      },
+      "response": {
+        "agent_id": "mock_patent_coordinator",
+        "agent_type": "patent_coordinator",
+        "content": "专利分析演示结果 - 5G通信技术趋势分析\n\n关键词: 5G, 通信技术, 无线网络\n分析类型: trend_analysis\n\n模拟分析结果:\n1. 数据收集: 已收集相关专利数据 100 条\n2. 搜索增强: 已获取学术文献和网络信息\n3. 趋势分析: 该技术领域呈现上升趋势\n4. 竞争分析: 识别出主要竞争者 5 家\n5. 报告生成: 已生成完整分析报告\n\n注意: 这是演示模式的模拟结果，实际系统将提供真实的专利分析数据。",
+        "confidence": 0.85,
+        "collaboration_needed": false,
+        "metadata": {
+          "workflow_type": "trend_analysis",
+          "required_agents": [
+            "patent_data_collection",
+            "patent_search",
+            "patent_analysis",
+            "patent_report"
+          ],
+          "coordination_id": "demo_5G通信技术趋势分析",
+          "demo_mode": true
+        }
+      },
+      "execution_time": 0.000498,
+      "timestamp": "2025-09-10T19:41:30.300881",
+      "success": true
+    },
+    {
+      "scenario": {
+        "name": "新能源汽车竞争分析",
+        "keywords": [
+          "新能源汽车",
+          "电动汽车",
+          "电池技术"
+        ],
+        "analysis_type": "competitive_analysis",
+        "description": "分析新能源汽车领域的竞争格局和主要参与者"
+      },
+      "request": {
+        "request_id": "0e1f2422-d92b-4d4b-b220-feda095d15c0",
+        "user_id": "demo_user",
+        "content": "请进行competitive_analysis，关键词：新能源汽车, 电动汽车, 电池技术",
+        "context": {
+          "demo_scenario": "新能源汽车竞争分析",
+          "keywords": [
+            "新能源汽车",
+            "电动汽车",
+            "电池技术"
+          ],
+          "analysis_type": "competitive_analysis",
+          "demo_mode": true
+        },
+        "timestamp": "2025-09-10T19:41:32.306506",
+        "priority": "normal"
+      },
+      "response": {
+        "agent_id": "mock_patent_coordinator",
+        "agent_type": "patent_coordinator",
+        "content": "专利分析演示结果 - 新能源汽车竞争分析\n\n关键词: 新能源汽车, 电动汽车, 电池技术\n分析类型: competitive_analysis\n\n模拟分析结果:\n1. 数据收集: 已收集相关专利数据 100 条\n2. 搜索增强: 已获取学术文献和网络信息\n3. 趋势分析: 该技术领域呈现上升趋势\n4. 竞争分析: 识别出主要竞争者 5 家\n5. 报告生成: 已生成完整分析报告\n\n注意: 这是演示模式的模拟结果，实际系统将提供真实的专利分析数据。",
+        "confidence": 0.85,
+        "collaboration_needed": false,
+        "metadata": {
+          "workflow_type": "competitive_analysis",
+          "required_agents": [
+            "patent_data_collection",
+            "patent_search",
+            "patent_analysis",
+            "patent_report"
+          ],
+          "coordination_id": "demo_新能源汽车竞争分析",
+          "demo_mode": true
+        }
+      },
+      "execution_time": 0.001005,
+      "timestamp": "2025-09-10T19:41:32.309513",
+      "success": true
+    }
+  ],
+  "summary": {
+    "total_count": 4,
+    "successful_count": 4,
+    "failed_count": 0
+  }
+}

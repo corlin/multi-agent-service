@@ -10,7 +10,7 @@ from collections import defaultdict, deque
 from ...models.base import AgentResponse, UserRequest, CollaborationResult
 from ...models.enums import AgentType, AgentStatus
 from ...workflows.state_management import WorkflowStateManager, WorkflowMessage
-from ...services.agent_router import AgentRouter
+# AgentRouter will be imported dynamically to avoid circular imports
 
 
 logger = logging.getLogger(__name__)
@@ -182,7 +182,7 @@ class PatentCollaborationManager:
     """专利Agent协作管理器."""
     
     def __init__(self, state_manager: Optional[WorkflowStateManager] = None,
-                 agent_router: Optional[AgentRouter] = None):
+                 agent_router: Optional[Any] = None):
         self.state_manager = state_manager or WorkflowStateManager()
         self.agent_router = agent_router
         self.load_balancer = PatentAgentLoadBalancer()

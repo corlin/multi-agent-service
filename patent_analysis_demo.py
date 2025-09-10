@@ -32,15 +32,75 @@ from src.multi_agent_service.core.patent_system_initializer import (
 from src.multi_agent_service.agents.registry import agent_registry
 
 
-# 配置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler("patent_demo.log")
-    ]
-)
+# 配置日志 - 修复Windows控制台编码问题
+import locale
+import codecs
+import atexit
+
+# 设置控制台编码
+if sys.platform.startswith('win'):
+    # Windows系统设置UTF-8编码
+    try:
+        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.detach())
+        sys.stderr = codecs.getwriter('utf-8')(sys.stderr.detach())
+    except Exception:
+        # 如果编码设置失败，继续使用默认编码
+        pass
+
+# 创建更安全的日志配置
+def setup_logging():
+    """设置日志配置，避免线程冲突"""
+    # 清除现有的处理器
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # 创建格式器
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    
+    # 创建控制台处理器
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    console_handler.setLevel(logging.INFO)
+    
+    # 创建文件处理器
+    try:
+        file_handler = logging.FileHandler("patent_demo.log", encoding='utf-8')
+        file_handler.setFormatter(formatter)
+        file_handler.setLevel(logging.INFO)
+        root_logger.addHandler(file_handler)
+    except Exception:
+        # 如果文件处理器创建失败，只使用控制台处理器
+        pass
+    
+    root_logger.addHandler(console_handler)
+    root_logger.setLevel(logging.INFO)
+    
+    # 抑制监控系统的日志，避免线程冲突
+    logging.getLogger("multi_agent_service.monitoring").setLevel(logging.CRITICAL)
+    logging.getLogger("src.multi_agent_service.utils.monitoring").setLevel(logging.CRITICAL)
+    logging.getLogger("multi_agent_service.monitoring_system").setLevel(logging.CRITICAL)
+    
+    # 抑制所有可能的监控相关日志
+    for logger_name in ["multi_agent_service.monitoring", "src.multi_agent_service.utils.monitoring", 
+                       "multi_agent_service.monitoring_system", "metrics_collector"]:
+        try:
+            logging.getLogger(logger_name).disabled = True
+        except Exception:
+            pass
+
+def cleanup_logging():
+    """清理日志处理器"""
+    try:
+        logging.shutdown()
+    except Exception:
+        pass
+
+# 设置日志
+setup_logging()
+
+# 注册清理函数
+atexit.register(cleanup_logging)
 logger = logging.getLogger(__name__)
 
 
@@ -82,7 +142,7 @@ class PatentAnalysisDemo:
     async def initialize_system(self) -> bool:
         """初始化专利分析系统."""
         try:
-            logger.info("🚀 开始初始化专利分析系统...")
+            logger.info("[启动] 开始初始化专利分析系统...")
             
             # 获取专利系统初始化器
             initializer = get_global_patent_initializer(agent_registry)
@@ -91,48 +151,48 @@ class PatentAnalysisDemo:
             success = await initializer.initialize()
             
             if success:
-                logger.info("✅ 专利分析系统初始化成功")
+                logger.info("[成功] 专利分析系统初始化成功")
                 self.system_initialized = True
                 
                 # 显示系统状态
                 await self.show_system_status()
                 return True
             else:
-                logger.error("❌ 专利分析系统初始化失败")
+                logger.error("[失败] 专利分析系统初始化失败")
                 return False
                 
         except Exception as e:
-            logger.error(f"❌ 系统初始化异常: {str(e)}")
+            logger.error(f"[异常] 系统初始化异常: {str(e)}")
             return False
     
     async def show_system_status(self):
         """显示系统状态."""
         try:
-            logger.info("📊 系统状态检查...")
+            logger.info("[检查] 系统状态检查...")
             
             # 获取健康检查结果
             health_status = await patent_system_health_check()
             
             print("\n" + "="*60)
-            print("📋 专利分析系统状态报告")
+            print("[状态] 专利分析系统状态报告")
             print("="*60)
             
-            print(f"🔧 系统健康状态: {'✅ 健康' if health_status.get('is_healthy') else '❌ 异常'}")
-            print(f"⏰ 检查时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"[系统] 健康状态: {'[正常] 健康' if health_status.get('is_healthy') else '[异常] 异常'}")
+            print(f"[时间] 检查时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             
             # 显示组件状态
             components = health_status.get("components", {})
             
             if "patent_agents" in components:
                 agent_info = components["patent_agents"]
-                print(f"\n🤖 专利Agent状态:")
-                print(f"   - 注册状态: {'✅ 已注册' if agent_info.get('status') == 'healthy' else '❌ 未注册'}")
+                print(f"\n[Agent] 专利Agent状态:")
+                print(f"   - 注册状态: {'[正常] 已注册' if agent_info.get('status') == 'healthy' else '[异常] 未注册'}")
                 print(f"   - 注册数量: {agent_info.get('registered_agents', 0)}")
             
             if "patent_workflows" in components:
                 workflow_info = components["patent_workflows"]
-                print(f"\n🔄 专利工作流状态:")
-                print(f"   - 工作流状态: {'✅ 正常' if workflow_info.get('status') == 'healthy' else '❌ 异常'}")
+                print(f"\n[工作流] 专利工作流状态:")
+                print(f"   - 工作流状态: {'[正常] 正常' if workflow_info.get('status') == 'healthy' else '[异常] 异常'}")
             
             print("="*60 + "\n")
             
@@ -142,13 +202,13 @@ class PatentAnalysisDemo:
     async def run_demo_scenario(self, scenario: Dict[str, Any]) -> Dict[str, Any]:
         """运行单个演示场景."""
         try:
-            logger.info(f"🎯 开始演示场景: {scenario['name']}")
+            logger.info(f"[场景] 开始演示场景: {scenario['name']}")
             
             print(f"\n{'='*60}")
-            print(f"🎯 演示场景: {scenario['name']}")
-            print(f"📝 描述: {scenario['description']}")
-            print(f"🔍 关键词: {', '.join(scenario['keywords'])}")
-            print(f"📊 分析类型: {scenario['analysis_type']}")
+            print(f"[场景] 演示场景: {scenario['name']}")
+            print(f"[描述] 描述: {scenario['description']}")
+            print(f"[关键词] 关键词: {', '.join(scenario['keywords'])}")
+            print(f"[分析] 分析类型: {scenario['analysis_type']}")
             print(f"{'='*60}")
             
             # 创建用户请求
@@ -172,7 +232,7 @@ class PatentAnalysisDemo:
             
             # 执行分析
             start_time = datetime.now()
-            logger.info(f"⏳ 开始执行专利分析...")
+            logger.info(f"[执行] 开始执行专利分析...")
             
             response = await coordinator.process_request(user_request)
             
@@ -182,7 +242,7 @@ class PatentAnalysisDemo:
             # 处理结果
             result = {
                 "scenario": scenario,
-                "request": user_request.dict(),
+                "request": user_request.model_dump(),
                 "response": {
                     "agent_id": response.agent_id,
                     "agent_type": response.agent_type.value if response.agent_type else "unknown",
@@ -199,12 +259,12 @@ class PatentAnalysisDemo:
             # 显示结果
             await self.display_scenario_result(result)
             
-            logger.info(f"✅ 场景 '{scenario['name']}' 执行完成，耗时 {duration:.2f} 秒")
+            logger.info(f"[完成] 场景 '{scenario['name']}' 执行完成，耗时 {duration:.2f} 秒")
             
             return result
             
         except Exception as e:
-            logger.error(f"❌ 场景 '{scenario['name']}' 执行失败: {str(e)}")
+            logger.error(f"[失败] 场景 '{scenario['name']}' 执行失败: {str(e)}")
             
             error_result = {
                 "scenario": scenario,
@@ -213,7 +273,7 @@ class PatentAnalysisDemo:
                 "timestamp": datetime.now().isoformat()
             }
             
-            print(f"\n❌ 场景执行失败: {str(e)}")
+            print(f"\n[失败] 场景执行失败: {str(e)}")
             return error_result
     
     async def get_patent_coordinator(self):
@@ -225,57 +285,52 @@ class PatentAnalysisDemo:
             if agents:
                 return agents[0]  # 使用第一个可用的协调Agent
             
-            # 如果没有注册的Agent，创建一个临时的
-            logger.warning("未找到注册的专利协调Agent，创建临时实例")
+            # 如果没有注册的Agent，创建一个简化的模拟协调器
+            logger.warning("未找到注册的专利协调Agent，创建模拟实例")
             
-            from src.multi_agent_service.agents.patent.coordinator_agent import PatentCoordinatorAgent
-            from src.multi_agent_service.models.config import AgentConfig
-            from src.multi_agent_service.services.model_client import BaseModelClient
-            from src.multi_agent_service.models.model_service import ModelConfig
-            from src.multi_agent_service.models.enums import ModelProvider
-            
-            # 创建临时配置
-            config = AgentConfig(
-                agent_id="demo_patent_coordinator",
-                agent_type=AgentType.PATENT_COORDINATOR,
-                name="Demo Patent Coordinator",
-                description="Temporary coordinator for demo",
-                capabilities=["patent_coordination", "workflow_management"],
-                config={}
-            )
-            
-            # 创建临时模型客户端
-            class DemoModelClient(BaseModelClient):
+            class MockPatentCoordinator:
+                """模拟专利协调Agent"""
+                
                 def __init__(self):
-                    mock_config = ModelConfig(
-                        provider=ModelProvider.CUSTOM,
-                        model_name="demo-client",
-                        api_key="demo",
-                        base_url="http://localhost",
-                        timeout=30.0,
-                        enabled=True
+                    self.agent_id = "mock_patent_coordinator"
+                    self.agent_type = AgentType.PATENT_COORDINATOR
+                
+                async def process_request(self, user_request):
+                    """模拟处理专利分析请求"""
+                    from src.multi_agent_service.models.base import AgentResponse
+                    
+                    # 模拟分析结果
+                    mock_content = f"""
+专利分析演示结果 - {user_request.context.get('demo_scenario', '未知场景')}
+
+关键词: {', '.join(user_request.context.get('keywords', []))}
+分析类型: {user_request.context.get('analysis_type', '未知')}
+
+模拟分析结果:
+1. 数据收集: 已收集相关专利数据 100 条
+2. 搜索增强: 已获取学术文献和网络信息
+3. 趋势分析: 该技术领域呈现上升趋势
+4. 竞争分析: 识别出主要竞争者 5 家
+5. 报告生成: 已生成完整分析报告
+
+注意: 这是演示模式的模拟结果，实际系统将提供真实的专利分析数据。
+                    """
+                    
+                    return AgentResponse(
+                        agent_id=self.agent_id,
+                        agent_type=self.agent_type,
+                        response_content=mock_content.strip(),
+                        confidence=0.85,
+                        collaboration_needed=False,
+                        metadata={
+                            "workflow_type": user_request.context.get('analysis_type'),
+                            "required_agents": ["patent_data_collection", "patent_search", "patent_analysis", "patent_report"],
+                            "coordination_id": f"demo_{user_request.context.get('demo_scenario', 'unknown').replace(' ', '_')}",
+                            "demo_mode": True
+                        }
                     )
-                    super().__init__(mock_config)
-                
-                async def initialize(self) -> bool:
-                    return True
-                
-                async def generate_response(self, request):
-                    return {"content": "Demo response"}
-                
-                async def health_check(self) -> bool:
-                    return True
-                
-                async def close(self):
-                    pass
             
-            model_client = DemoModelClient()
-            coordinator = PatentCoordinatorAgent(config, model_client)
-            
-            # 初始化
-            await coordinator.initialize()
-            
-            return coordinator
+            return MockPatentCoordinator()
             
         except Exception as e:
             logger.error(f"获取专利协调Agent失败: {str(e)}")
@@ -284,27 +339,27 @@ class PatentAnalysisDemo:
     async def display_scenario_result(self, result: Dict[str, Any]):
         """显示场景执行结果."""
         try:
-            print(f"\n📊 执行结果:")
-            print(f"   ⏱️  执行时间: {result.get('execution_time', 0):.2f} 秒")
-            print(f"   ✅ 成功状态: {'成功' if result.get('success') else '失败'}")
+            print(f"\n[结果] 执行结果:")
+            print(f"   [时间] 执行时间: {result.get('execution_time', 0):.2f} 秒")
+            print(f"   [状态] 成功状态: {'成功' if result.get('success') else '失败'}")
             
             if result.get('success'):
                 response = result.get('response', {})
-                print(f"   🎯 置信度: {response.get('confidence', 0):.2f}")
-                print(f"   🤝 需要协作: {'是' if response.get('collaboration_needed') else '否'}")
+                print(f"   [置信度] 置信度: {response.get('confidence', 0):.2f}")
+                print(f"   [协作] 需要协作: {'是' if response.get('collaboration_needed') else '否'}")
                 
                 # 显示响应内容的摘要
                 content = response.get('content', '')
                 if content:
                     # 显示前200个字符作为摘要
                     summary = content[:200] + "..." if len(content) > 200 else content
-                    print(f"\n📝 响应摘要:")
+                    print(f"\n[摘要] 响应摘要:")
                     print(f"   {summary}")
                 
                 # 显示元数据信息
                 metadata = response.get('metadata', {})
                 if metadata:
-                    print(f"\n🔍 执行详情:")
+                    print(f"\n[详情] 执行详情:")
                     if 'workflow_type' in metadata:
                         print(f"   - 工作流类型: {metadata['workflow_type']}")
                     if 'required_agents' in metadata:
@@ -313,9 +368,9 @@ class PatentAnalysisDemo:
                         print(f"   - 协调ID: {metadata['coordination_id']}")
             else:
                 error = result.get('error', '未知错误')
-                print(f"   ❌ 错误信息: {error}")
+                print(f"   [错误] 错误信息: {error}")
             
-            print(f"   🕐 完成时间: {result.get('timestamp', 'unknown')}")
+            print(f"   [完成] 完成时间: {result.get('timestamp', 'unknown')}")
             
         except Exception as e:
             logger.error(f"显示结果失败: {str(e)}")
@@ -323,23 +378,23 @@ class PatentAnalysisDemo:
     async def run_all_scenarios(self):
         """运行所有演示场景."""
         try:
-            logger.info("🎬 开始运行所有演示场景...")
+            logger.info("[演示] 开始运行所有演示场景...")
             
-            print(f"\n🎬 专利分析系统端到端演示")
-            print(f"📅 演示时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            print(f"🎯 演示场景数量: {len(self.demo_scenarios)}")
+            print(f"\n[演示] 专利分析系统端到端演示")
+            print(f"[时间] 演示时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"[场景] 演示场景数量: {len(self.demo_scenarios)}")
             
             total_start_time = datetime.now()
             
             for i, scenario in enumerate(self.demo_scenarios, 1):
-                print(f"\n🔄 执行场景 {i}/{len(self.demo_scenarios)}")
+                print(f"\n[执行] 执行场景 {i}/{len(self.demo_scenarios)}")
                 
                 result = await self.run_demo_scenario(scenario)
                 self.demo_results.append(result)
                 
                 # 场景间暂停
                 if i < len(self.demo_scenarios):
-                    print(f"\n⏸️  暂停 2 秒后继续下一个场景...")
+                    print(f"\n[暂停] 暂停 2 秒后继续下一个场景...")
                     await asyncio.sleep(2)
             
             total_end_time = datetime.now()
@@ -355,13 +410,13 @@ class PatentAnalysisDemo:
         """显示演示总结."""
         try:
             print(f"\n{'='*60}")
-            print(f"📊 演示总结报告")
+            print(f"[总结] 演示总结报告")
             print(f"{'='*60}")
             
             successful_scenarios = [r for r in self.demo_results if r.get('success')]
             failed_scenarios = [r for r in self.demo_results if not r.get('success')]
             
-            print(f"📈 总体统计:")
+            print(f"[统计] 总体统计:")
             print(f"   - 总场景数: {len(self.demo_results)}")
             print(f"   - 成功场景: {len(successful_scenarios)}")
             print(f"   - 失败场景: {len(failed_scenarios)}")
@@ -372,12 +427,12 @@ class PatentAnalysisDemo:
                 avg_time = sum(r.get('execution_time', 0) for r in successful_scenarios) / len(successful_scenarios)
                 avg_confidence = sum(r.get('response', {}).get('confidence', 0) for r in successful_scenarios) / len(successful_scenarios)
                 
-                print(f"\n✅ 成功场景分析:")
+                print(f"\n[成功] 成功场景分析:")
                 print(f"   - 平均执行时间: {avg_time:.2f} 秒")
                 print(f"   - 平均置信度: {avg_confidence:.2f}")
             
             if failed_scenarios:
-                print(f"\n❌ 失败场景:")
+                print(f"\n[失败] 失败场景:")
                 for result in failed_scenarios:
                     scenario_name = result.get('scenario', {}).get('name', 'Unknown')
                     error = result.get('error', 'Unknown error')
@@ -386,7 +441,7 @@ class PatentAnalysisDemo:
             # 保存详细结果
             await self.save_demo_results()
             
-            print(f"\n🎉 演示完成！详细结果已保存到 patent_demo_results.json")
+            print(f"\n[完成] 演示完成！详细结果已保存到 patent_demo_results.json")
             print(f"{'='*60}")
             
         except Exception as e:
@@ -421,14 +476,14 @@ class PatentAnalysisDemo:
     async def run_interactive_demo(self):
         """运行交互式演示."""
         try:
-            print(f"\n🎮 专利分析系统交互式演示")
+            print(f"\n[交互] 专利分析系统交互式演示")
             print(f"{'='*60}")
             
             while True:
-                print(f"\n📋 可用的演示场景:")
+                print(f"\n[菜单] 可用的演示场景:")
                 for i, scenario in enumerate(self.demo_scenarios, 1):
                     print(f"   {i}. {scenario['name']}")
-                    print(f"      📝 {scenario['description']}")
+                    print(f"      [描述] {scenario['description']}")
                 
                 print(f"   0. 退出演示")
                 print(f"   99. 运行所有场景")
@@ -437,7 +492,7 @@ class PatentAnalysisDemo:
                     choice = input(f"\n请选择要运行的场景 (0-{len(self.demo_scenarios)}, 99): ").strip()
                     
                     if choice == "0":
-                        print("👋 感谢使用专利分析系统演示！")
+                        print("[退出] 感谢使用专利分析系统演示！")
                         break
                     elif choice == "99":
                         await self.run_all_scenarios()
@@ -449,12 +504,12 @@ class PatentAnalysisDemo:
                             result = await self.run_demo_scenario(scenario)
                             self.demo_results.append(result)
                         else:
-                            print("❌ 无效的选择，请重新输入")
+                            print("[错误] 无效的选择，请重新输入")
                 
                 except ValueError:
-                    print("❌ 请输入有效的数字")
+                    print("[错误] 请输入有效的数字")
                 except KeyboardInterrupt:
-                    print("\n👋 演示已中断")
+                    print("\n[中断] 演示已中断")
                     break
                 
         except Exception as e:
@@ -464,7 +519,7 @@ class PatentAnalysisDemo:
 async def main():
     """主函数."""
     try:
-        print("🚀 专利分析系统端到端演示")
+        print("[启动] 专利分析系统端到端演示")
         print("="*60)
         
         # 创建演示实例
@@ -472,40 +527,67 @@ async def main():
         
         # 初始化系统
         if not await demo.initialize_system():
-            print("❌ 系统初始化失败，无法继续演示")
+            print("[失败] 系统初始化失败，无法继续演示")
             return 1
         
-        # 检查命令行参数
-        if len(sys.argv) > 1:
-            if sys.argv[1] == "--all":
-                # 运行所有场景
-                await demo.run_all_scenarios()
-            elif sys.argv[1] == "--interactive":
-                # 交互式模式
-                await demo.run_interactive_demo()
-            else:
-                print(f"❌ 未知参数: {sys.argv[1]}")
-                print("使用方法:")
-                print("  python patent_analysis_demo.py           # 交互式模式")
-                print("  python patent_analysis_demo.py --all     # 运行所有场景")
-                print("  python patent_analysis_demo.py --interactive  # 交互式模式")
-                return 1
+        # 检查命令行参数 - 修复参数解析问题
+        import argparse
+        
+        parser = argparse.ArgumentParser(description='专利分析系统演示')
+        parser.add_argument('--all', action='store_true', help='运行所有演示场景')
+        parser.add_argument('--interactive', action='store_true', help='交互式模式')
+        
+        args = parser.parse_args()
+        
+        if args.all:
+            # 运行所有场景
+            await demo.run_all_scenarios()
+        elif args.interactive:
+            # 交互式模式
+            await demo.run_interactive_demo()
         else:
             # 默认交互式模式
             await demo.run_interactive_demo()
         
+        # 等待一小段时间让后台线程完成
+        await asyncio.sleep(0.1)
+        
         return 0
         
     except KeyboardInterrupt:
-        print("\n👋 演示已被用户中断")
+        print("\n[中断] 演示已被用户中断")
         return 0
     except Exception as e:
         logger.error(f"演示执行失败: {str(e)}")
-        print(f"❌ 演示执行失败: {str(e)}")
+        print(f"[失败] 演示执行失败: {str(e)}")
         return 1
+    finally:
+        # 确保清理资源
+        try:
+            # 禁用所有监控相关的日志记录器
+            for logger_name in logging.Logger.manager.loggerDict:
+                if 'monitoring' in logger_name.lower() or 'metrics' in logger_name.lower():
+                    logging.getLogger(logger_name).disabled = True
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
     # 运行演示
-    exit_code = asyncio.run(main())
-    sys.exit(exit_code)
+    try:
+        exit_code = asyncio.run(main())
+        
+        # 给后台线程一些时间完成
+        import time
+        time.sleep(0.2)
+        
+        sys.exit(exit_code)
+    except KeyboardInterrupt:
+        print("\n[中断] 程序被用户中断")
+        sys.exit(0)
+    except Exception as e:
+        print(f"[错误] 程序执行异常: {str(e)}")
+        sys.exit(1)
+    finally:
+        # 强制清理日志
+        cleanup_logging()

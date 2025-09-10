@@ -13,7 +13,7 @@ from ...models.config import AgentConfig
 from ...models.enums import AgentType, WorkflowStatus
 from ...services.model_client import BaseModelClient
 from ...workflows.state_management import WorkflowStateManager
-from ...services.agent_router import AgentRouter
+# AgentRouter will be imported dynamically to avoid circular imports
 
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ class PatentCoordinatorAgent(CoordinatorAgent):
     
     def __init__(self, config: AgentConfig, model_client: BaseModelClient, 
                  state_manager: Optional[WorkflowStateManager] = None,
-                 agent_router: Optional[AgentRouter] = None):
+                 agent_router: Optional[Any] = None):
         """初始化专利协调Agent."""
         super().__init__(config, model_client)
         
