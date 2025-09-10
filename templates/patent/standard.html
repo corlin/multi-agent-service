@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}标准专利分析报告{% endblock %}
+
+{% block header_title %}标准专利分析报告{% endblock %}
+
+{% block content %}
+<!-- 执行摘要 -->
+{% if content.summary %}
+<div class="section">
+    <h2>📋 执行摘要</h2>
+    <p>{{ content.summary }}</p>
+</div>
+{% endif %}
+
+<!-- 趋势分析 -->
+{% if content.sections.trend %}
+<div class="section">
+    <h2>📈 趋势分析</h2>
+    {% if charts.trend_chart %}
+    <div class="chart-container">
+        <img src="{{ charts.trend_chart.path }}" alt="专利申请趋势图" />
+        <p><em>图1: 专利申请趋势变化</em></p>
+    </div>
+    {% endif %}
+    <div>{{ content.sections.trend }}</div>
+</div>
+{% endif %}
+
+<!-- 竞争分析 -->
+{% if content.sections.competition %}
+<div class="section">
+    <h2>🏢 竞争分析</h2>
+    {% if charts.competition_chart %}
+    <div class="chart-container">
+        <img src="{{ charts.competition_chart.path }}" alt="竞争格局图" />
+        <p><em>图2: 主要申请人分布</em></p>
+    </div>
+    {% endif %}
+    <div>{{ content.sections.competition }}</div>
+</div>
+{% endif %}
+
+<!-- 技术分析 -->
+{% if content.sections.technology %}
+<div class="section">
+    <h2>🔬 技术分析</h2>
+    {% if charts.technology_chart %}
+    <div class="chart-container">
+        <img src="{{ charts.technology_chart.path }}" alt="技术分类图" />
+        <p><em>图3: 技术领域分布</em></p>
+    </div>
+    {% endif %}
+    <div>{{ content.sections.technology }}</div>
+</div>
+{% endif %}
+
+<!-- 关键洞察 -->
+{% if content.insights %}
+<div class="section">
+    <h2>💡 关键洞察</h2>
+    <div class="insights">
+        {% for insight in content.insights %}
+        <p>• {{ insight }}</p>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- 建议和结论 -->
+{% if content.recommendations %}
+<div class="section">
+    <h2>📋 建议和结论</h2>
+    <ul>
+        {% for recommendation in content.recommendations %}
+        <li>{{ recommendation }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% endblock %}

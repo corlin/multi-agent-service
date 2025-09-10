@@ -1,0 +1,172 @@
+version: '3.8'
+
+services:
+  # Main patent analysis service
+  patent-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: patent-mvp-service
+    ports:
+      - "8000:8000"
+    environment:
+      # Application settings
+      - APP_ENV=production
+      - LOG_LEVEL=INFO
+      - DEBUG=false
+      
+      # Database settings
+      - DATABASE_URL=postgresql://patent_user:patent_pass@postgres:5432/patent_db
+      - DATABASE_POOL_SIZE=10
+      - DATABASE_MAX_OVERFLOW=20
+      
+      # Redis settings
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_CACHE_TTL=3600
+      
+      # Patent analysis settings
+      - PATENT_DATA_CACHE_TTL=7200
+      - PATENT_ANALYSIS_TIMEOUT=300
+      - PATENT_REPORT_STORAGE_PATH=/app/reports/patent
+      - PATENT_CACHE_DIR=/app/cache/patent
+      - PATENT_DATA_DIR=/app/data
+      - PATENT_MAX_CONCURRENT_ANALYSES=5
+      - PATENT_BATCH_SIZE=100
+      - PATENT_RETRY_ATTEMPTS=3
+      - PATENT_RETRY_DELAY=5
+      
+      # External API settings
+      - CNKI_API_KEY=${CNKI_API_KEY:-}
+      - CNKI_API_TIMEOUT=30
+      - CNKI_API_RATE_LIMIT=10
+      - BOCHA_AI_API_KEY=${BOCHA_AI_API_KEY:-}
+      - BOCHA_AI_TIMEOUT=30
+      - BOCHA_AI_RATE_LIMIT=5
+      - GOOGLE_PATENTS_API_KEY=${GOOGLE_PATENTS_API_KEY:-}
+      - PATENTS_VIEW_API_TIMEOUT=30
+      
+      # Web crawling settings
+      - CRAWL_DELAY=2
+      - CRAWL_TIMEOUT=30
+      - CRAWL_MAX_PAGES=50
+      - CRAWL_RESPECT_ROBOTS=true
+      - USER_AGENT=PatentMVP-Bot/1.0
+      
+      # Agent settings
+      - AGENT_REGISTRY_AUTO_RELOAD=true
+      - AGENT_EXECUTION_TIMEOUT=600
+      - WORKFLOW_STATE_PERSISTENCE=true
+      
+      # Monitoring settings
+      - MONITORING_ENABLED=true
+      - HEALTH_CHECK_INTERVAL=30
+      - METRICS_COLLECTION_ENABLED=true
+      
+      # Security settings
+      - API_RATE_LIMIT=100
+      - API_RATE_LIMIT_WINDOW=60
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:8080
+    volumes:
+      - patent_reports:/app/reports/patent
+      - patent_logs:/app/logs
+      - patent_data:/app/data
+      - patent_cache:/app/cache/patent
+      - patent_tmp:/app/tmp
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - patent-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # PostgreSQL database
+  postgres:
+    image: postgres:15-alpine
+    container_name: patent-postgres
+    environment:
+      - POSTGRES_DB=patent_db
+      - POSTGRES_USER=patent_user
+      - POSTGRES_PASSWORD=patent_pass
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - patent-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U patent_user -d patent_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis cache
+  redis:
+    image: redis:7-alpine
+    container_name: patent-redis
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - patent-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Nginx reverse proxy (optional)
+  nginx:
+    image: nginx:alpine
+    container_name: patent-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - patent_static:/var/www/static
+    depends_on:
+      - patent-service
+    networks:
+      - patent-network
+    restart: unless-stopped
+    profiles:
+      - production
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  patent_reports:
+    driver: local
+  patent_logs:
+    driver: local
+  patent_data:
+    driver: local
+  patent_cache:
+    driver: local
+  patent_tmp:
+    driver: local
+  patent_static:
+    driver: local
+
+networks:
+  patent-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

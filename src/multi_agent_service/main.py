@@ -13,6 +13,7 @@ from .api.health import router as health_router
 from .utils.fastapi_handlers import setup_exception_handlers
 from .utils.middleware import setup_middleware
 from .core.lifecycle_manager import lifecycle_manager
+from .core.patent_system_initializer import initialize_patent_system, get_patent_system_status
 
 
 # Configure logging
@@ -36,6 +37,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if not await lifecycle_manager.startup():
         logger.error("Failed to start services")
         raise RuntimeError("Service startup failed")
+    
+    # Initialize patent system
+    logger.info("Initializing patent analysis system...")
+    try:
+        # Get the agent registry from service manager
+        from .agents.registry import agent_registry
+        patent_init_success = await initialize_patent_system(agent_registry)
+        
+        if patent_init_success:
+            logger.info("Patent analysis system initialized successfully")
+        else:
+            logger.warning("Patent analysis system initialization failed, but continuing startup")
+            # Don't fail the entire startup for patent system issues
+    except Exception as e:
+        logger.error(f"Patent system initialization error: {str(e)}")
+        # Continue startup even if patent system fails
     
     logger.info("All services started successfully")
     
@@ -82,6 +99,7 @@ from .api.workflows import router as workflows_router
 from .api.monitoring import router as monitoring_router
 from .api.config import router as config_router
 from .api.system import router as system_router
+from .api.patent import router as patent_router
 
 app.include_router(chat_router)
 app.include_router(agents_router)
@@ -89,6 +107,7 @@ app.include_router(workflows_router)
 app.include_router(monitoring_router)
 app.include_router(config_router)
 app.include_router(system_router)
+app.include_router(patent_router)
 
 
 # Exception handlers are now set up via setup_exception_handlers()
@@ -102,11 +121,19 @@ async def root():
         is_healthy = lifecycle_manager.service_manager.is_healthy() if lifecycle_manager.service_manager else False
         uptime = lifecycle_manager.uptime
         
+        # Get patent system status
+        patent_status = await get_patent_system_status()
+        patent_initialized = patent_status.get("is_initialized", False)
+        
         return {
             "message": "Multi-Agent LangGraph Service",
             "version": "0.1.0",
             "status": "healthy" if is_healthy else "unhealthy",
             "uptime_seconds": uptime,
+            "patent_system": {
+                "initialized": patent_initialized,
+                "status": "active" if patent_initialized else "inactive"
+            },
             "endpoints": {
                 "docs": "/docs",
                 "health": "/api/v1/health",
@@ -114,7 +141,10 @@ async def root():
                 "system_status": "/api/v1/system/status",
                 "chat": "/api/v1/chat/completions",
                 "agents": "/api/v1/agents",
-                "workflows": "/api/v1/workflows"
+                "workflows": "/api/v1/workflows",
+                "patent_analyze": "/api/v1/patent/analyze",
+                "patent_reports": "/api/v1/patent/reports",
+                "patent_export": "/api/v1/patent/export"
             },
             "features": [
                 "Multi-agent collaboration",
@@ -122,8 +152,18 @@ async def root():
                 "LangGraph workflow engine",
                 "Multiple LLM provider support",
                 "Real-time monitoring",
-                "Hot configuration reload"
-            ]
+                "Hot configuration reload",
+                "Patent analysis and reporting" + (" ✅" if patent_initialized else " ⚠️"),
+                "Multi-format report export (HTML, PDF, JSON, ZIP)",
+                "Report version management",
+                "Report download and distribution API",
+                "Patent data collection and processing",
+                "Patent search enhancement with CNKI and AI",
+                "Patent trend and competition analysis",
+                "Automated patent workflow orchestration"
+            ],
+            "patent_agents": patent_status.get("components", {}).get("patent_agents", {}).get("registered_count", 0) if patent_initialized else 0,
+            "patent_workflows": patent_status.get("components", {}).get("patent_workflows", {}).get("registered_count", 0) if patent_initialized else 0
         }
     except Exception as e:
         return {

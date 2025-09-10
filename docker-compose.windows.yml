@@ -1,0 +1,158 @@
+version: '3.8'
+
+# Windows-specific Docker Compose configuration for Patent MVP System
+# This configuration is optimized for Windows 10 development environment
+
+services:
+  # Main patent analysis service
+  patent-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+      args:
+        INSTALL_DEV: "true"  # Include dev dependencies for Windows development
+    container_name: patent-mvp-service-windows
+    ports:
+      - "8000:8000"
+    environment:
+      # Application settings
+      - APP_ENV=development
+      - LOG_LEVEL=DEBUG
+      - DEBUG=true
+      
+      # Database settings (using SQLite for Windows development)
+      - DATABASE_URL=sqlite:///app/data/patent_dev.db
+      - DATABASE_POOL_SIZE=5
+      - DATABASE_MAX_OVERFLOW=10
+      
+      # Redis settings
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_CACHE_TTL=1800
+      
+      # Patent analysis settings
+      - PATENT_DATA_CACHE_TTL=3600
+      - PATENT_ANALYSIS_TIMEOUT=180
+      - PATENT_REPORT_STORAGE_PATH=/app/reports/patent
+      
+      # External API settings (development/mock)
+      - CNKI_API_KEY=test_cnki_key
+      - CNKI_API_TIMEOUT=15
+      - BOCHA_AI_API_KEY=test_bocha_key
+      - BOCHA_AI_TIMEOUT=15
+      - MOCK_EXTERNAL_APIS=true
+      
+      # Agent settings
+      - AGENT_REGISTRY_AUTO_RELOAD=true
+      - AGENT_EXECUTION_TIMEOUT=300
+      - WORKFLOW_STATE_PERSISTENCE=false
+      - HOT_RELOAD_ENABLED=true
+      
+      # Monitoring settings
+      - MONITORING_ENABLED=true
+      - HEALTH_CHECK_INTERVAL=10
+      - METRICS_COLLECTION_ENABLED=true
+      
+      # Security settings (relaxed for development)
+      - API_RATE_LIMIT=1000
+      - API_RATE_LIMIT_WINDOW=60
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:8080,http://localhost:8000
+      - API_KEY_REQUIRED=false
+    volumes:
+      # Mount source code for development (Windows paths)
+      - type: bind
+        source: ./src
+        target: /app/src
+      - type: bind
+        source: ./config
+        target: /app/config
+      - type: bind
+        source: ./templates
+        target: /app/templates
+      # Data persistence
+      - patent_data_windows:/app/data
+      - patent_reports_windows:/app/reports
+      - patent_logs_windows:/app/logs
+    depends_on:
+      - redis
+    networks:
+      - patent-network-windows
+    restart: unless-stopped
+    command: ["uv", "run", "uvicorn", "src.multi_agent_service.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  # Redis cache (lightweight for Windows)
+  redis:
+    image: redis:7-alpine
+    container_name: patent-redis-windows
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data_windows:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - patent-network-windows
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Development tools container (optional)
+  dev-tools:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+      args:
+        INSTALL_DEV: "true"
+    container_name: patent-dev-tools-windows
+    volumes:
+      - type: bind
+        source: .
+        target: /app
+    working_dir: /app
+    command: tail -f /dev/null
+    networks:
+      - patent-network-windows
+    profiles:
+      - dev-tools
+
+  # Jupyter notebook for data analysis (optional)
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+      args:
+        INSTALL_DEV: "true"
+    container_name: patent-jupyter-windows
+    ports:
+      - "8888:8888"
+    volumes:
+      - type: bind
+        source: .
+        target: /app
+      - patent_notebooks_windows:/app/notebooks
+    working_dir: /app
+    command: uv run jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password=''
+    networks:
+      - patent-network-windows
+    profiles:
+      - jupyter
+
+volumes:
+  redis_data_windows:
+    driver: local
+  patent_data_windows:
+    driver: local
+  patent_reports_windows:
+    driver: local
+  patent_logs_windows:
+    driver: local
+  patent_notebooks_windows:
+    driver: local
+
+networks:
+  patent-network-windows:
+    driver: bridge

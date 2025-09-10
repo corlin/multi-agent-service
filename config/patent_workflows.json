@@ -1,0 +1,346 @@
+{
+  "workflows": {
+    "patent_comprehensive_analysis": {
+      "workflow_id": "patent_comprehensive_analysis",
+      "name": "专利综合分析工作流",
+      "description": "完整的专利分析流程，包括数据收集、搜索增强、分析处理和报告生成",
+      "workflow_type": "sequential",
+      "enabled": true,
+      "participating_agents": [
+        "patent_data_collection_agent",
+        "patent_search_agent",
+        "patent_analysis_agent",
+        "patent_report_agent"
+      ],
+      "execution_order": [
+        "patent_data_collection_agent",
+        "patent_search_agent",
+        "patent_analysis_agent",
+        "patent_report_agent"
+      ],
+      "timeout": 1800,
+      "retry_policy": {
+        "max_retries": 2,
+        "retry_delay": 10,
+        "backoff_factor": 1.5
+      },
+      "metadata": {
+        "category": "patent_analysis",
+        "priority": "high",
+        "estimated_duration": 1200,
+        "steps": [
+          {
+            "step_id": "data_collection",
+            "name": "专利数据收集",
+            "agent_type": "patent_data_collection",
+            "required": true,
+            "timeout": 300,
+            "retry_count": 3,
+            "dependencies": [],
+            "parameters": {
+              "max_patents": 1000,
+              "data_sources": [
+                "google_patents",
+                "patent_public_api"
+              ],
+              "enable_cache": true
+            }
+          },
+          {
+            "step_id": "search_enhancement",
+            "name": "搜索增强",
+            "agent_type": "patent_search",
+            "required": false,
+            "timeout": 180,
+            "retry_count": 2,
+            "dependencies": [],
+            "parallel_with": [
+              "data_collection"
+            ],
+            "parameters": {
+              "enable_cnki": true,
+              "enable_bocha": true,
+              "enable_crawling": true
+            }
+          },
+          {
+            "step_id": "analysis",
+            "name": "专利分析",
+            "agent_type": "patent_analysis",
+            "required": true,
+            "timeout": 600,
+            "retry_count": 2,
+            "dependencies": [
+              "data_collection"
+            ],
+            "parameters": {
+              "analysis_types": [
+                "comprehensive"
+              ],
+              "min_confidence": 0.7
+            }
+          },
+          {
+            "step_id": "report_generation",
+            "name": "报告生成",
+            "agent_type": "patent_report",
+            "required": false,
+            "timeout": 300,
+            "retry_count": 2,
+            "dependencies": [
+              "analysis"
+            ],
+            "parameters": {
+              "format": "html",
+              "template": "comprehensive"
+            }
+          }
+        ],
+        "success_criteria": {
+          "min_steps_completed": 2,
+          "required_steps": [
+            "data_collection",
+            "analysis"
+          ],
+          "min_quality_score": 0.6
+        }
+      }
+    },
+    "patent_quick_analysis": {
+      "workflow_id": "patent_quick_analysis",
+      "name": "专利快速分析工作流",
+      "description": "快速专利分析流程，仅包含数据收集和基础分析",
+      "workflow_type": "sequential",
+      "enabled": true,
+      "participating_agents": [
+        "patent_data_collection_agent",
+        "patent_analysis_agent"
+      ],
+      "execution_order": [
+        "patent_data_collection_agent",
+        "patent_analysis_agent"
+      ],
+      "timeout": 600,
+      "retry_policy": {
+        "max_retries": 2,
+        "retry_delay": 5,
+        "backoff_factor": 1.5
+      },
+      "metadata": {
+        "category": "patent_analysis",
+        "priority": "medium",
+        "estimated_duration": 400,
+        "steps": [
+          {
+            "step_id": "quick_data_collection",
+            "name": "快速数据收集",
+            "agent_type": "patent_data_collection",
+            "required": true,
+            "timeout": 120,
+            "retry_count": 2,
+            "dependencies": [],
+            "parameters": {
+              "max_patents": 200,
+              "data_sources": [
+                "google_patents"
+              ],
+              "enable_cache": true
+            }
+          },
+          {
+            "step_id": "quick_analysis",
+            "name": "快速分析",
+            "agent_type": "patent_analysis",
+            "required": true,
+            "timeout": 300,
+            "retry_count": 2,
+            "dependencies": [
+              "quick_data_collection"
+            ],
+            "parameters": {
+              "analysis_types": [
+                "trend_analysis",
+                "competition_analysis"
+              ],
+              "min_confidence": 0.6
+            }
+          }
+        ],
+        "success_criteria": {
+          "min_steps_completed": 2,
+          "required_steps": [
+            "quick_data_collection",
+            "quick_analysis"
+          ],
+          "min_quality_score": 0.5
+        }
+      }
+    },
+    "patent_parallel_analysis": {
+      "workflow_id": "patent_parallel_analysis",
+      "name": "专利并行分析工作流",
+      "description": "并行执行数据收集和搜索增强，提高处理效率",
+      "workflow_type": "parallel",
+      "enabled": true,
+      "participating_agents": [
+        "patent_data_collection_agent",
+        "patent_search_agent",
+        "patent_analysis_agent",
+        "patent_report_agent"
+      ],
+      "parallel_groups": [
+        [
+          "patent_data_collection_agent",
+          "patent_search_agent"
+        ],
+        [
+          "patent_analysis_agent"
+        ],
+        [
+          "patent_report_agent"
+        ]
+      ],
+      "timeout": 900,
+      "retry_policy": {
+        "max_retries": 2,
+        "retry_delay": 10,
+        "backoff_factor": 1.5
+      },
+      "metadata": {
+        "category": "patent_analysis",
+        "priority": "high",
+        "estimated_duration": 600,
+        "steps": [
+          {
+            "step_id": "parallel_data_collection",
+            "name": "并行数据收集",
+            "agent_type": "patent_data_collection",
+            "required": true,
+            "timeout": 300,
+            "retry_count": 3,
+            "dependencies": [],
+            "parallel_group": "data_gathering",
+            "parameters": {
+              "max_patents": 800,
+              "data_sources": [
+                "google_patents",
+                "patent_public_api"
+              ],
+              "parallel_sources": true
+            }
+          },
+          {
+            "step_id": "parallel_search",
+            "name": "并行搜索增强",
+            "agent_type": "patent_search",
+            "required": true,
+            "timeout": 180,
+            "retry_count": 2,
+            "dependencies": [],
+            "parallel_group": "data_gathering",
+            "parameters": {
+              "enable_all_sources": true,
+              "parallel_search": true
+            }
+          },
+          {
+            "step_id": "integrated_analysis",
+            "name": "整合分析",
+            "agent_type": "patent_analysis",
+            "required": true,
+            "timeout": 600,
+            "retry_count": 2,
+            "dependencies": [
+              "parallel_data_collection",
+              "parallel_search"
+            ],
+            "parameters": {
+              "analysis_types": [
+                "comprehensive"
+              ],
+              "use_enhanced_data": true
+            }
+          },
+          {
+            "step_id": "final_report",
+            "name": "最终报告",
+            "agent_type": "patent_report",
+            "required": false,
+            "timeout": 300,
+            "retry_count": 2,
+            "dependencies": [
+              "integrated_analysis"
+            ],
+            "parameters": {
+              "format": "html",
+              "include_charts": true
+            }
+          }
+        ],
+        "success_criteria": {
+          "min_steps_completed": 3,
+          "required_steps": [
+            "parallel_data_collection",
+            "integrated_analysis"
+          ],
+          "min_quality_score": 0.7
+        }
+      }
+    },
+    "patent_coordinated_workflow": {
+      "workflow_id": "patent_coordinated_workflow",
+      "name": "专利协调工作流",
+      "description": "由协调Agent管理的完整专利分析流程",
+      "workflow_type": "hierarchical",
+      "enabled": true,
+      "participating_agents": [
+        "patent_coordinator_agent",
+        "patent_data_collection_agent",
+        "patent_search_agent",
+        "patent_analysis_agent",
+        "patent_report_agent"
+      ],
+      "coordinator_agent": "patent_coordinator_agent",
+      "timeout": 2100,
+      "retry_policy": {
+        "max_retries": 1,
+        "retry_delay": 30,
+        "backoff_factor": 1
+      },
+      "metadata": {
+        "category": "patent_analysis",
+        "priority": "critical",
+        "estimated_duration": 1800,
+        "steps": [
+          {
+            "step_id": "workflow_coordination",
+            "name": "工作流协调",
+            "agent_type": "patent_coordinator",
+            "required": true,
+            "timeout": 1800,
+            "retry_count": 1,
+            "dependencies": [],
+            "parameters": {
+              "coordinate_all_agents": true,
+              "enable_quality_control": true,
+              "auto_recovery": true,
+              "sub_workflows": [
+                "data_collection",
+                "search_enhancement",
+                "analysis",
+                "report_generation"
+              ]
+            }
+          }
+        ],
+        "success_criteria": {
+          "min_steps_completed": 1,
+          "required_steps": [
+            "workflow_coordination"
+          ],
+          "min_quality_score": 0.8
+        }
+      }
+    }
+  }
+}

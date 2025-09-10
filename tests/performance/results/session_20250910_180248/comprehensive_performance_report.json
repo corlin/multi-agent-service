@@ -1,0 +1,200 @@
+{
+  "test_session": {
+    "timestamp": "20250910_180248",
+    "session_dir": "tests\\performance\\results\\session_20250910_180248",
+    "start_time": "2025-09-10T18:02:48.838609",
+    "end_time": "2025-09-10T18:02:54.001655",
+    "total_duration": 5.163046
+  },
+  "benchmark_results": {
+    "summary": {
+      "test_start_time": "2025-09-10T18:02:48.838609",
+      "test_end_time": "2025-09-10T18:02:54.001655",
+      "total_duration": 5.163046,
+      "total_tests": 4,
+      "successful_tests": 3,
+      "failed_tests": 1,
+      "success_rate": 0.75
+    },
+    "system_info": {
+      "cpu_count": 8,
+      "memory_total_gb": 47.858863830566406,
+      "python_version": "3.12.7",
+      "platform": "win32"
+    },
+    "test_results": [
+      {
+        "test_name": "single_agent_baseline",
+        "description": "单个专利Agent性能基线测试",
+        "success": true,
+        "duration": 0.006497,
+        "start_time": "2025-09-10T18:02:48.840111",
+        "end_time": "2025-09-10T18:02:48.846608",
+        "metrics": {
+          "total_requests": 30,
+          "successful_requests": 30,
+          "success_rate": 1.0,
+          "avg_response_time": 8.33749771118164e-05,
+          "median_response_time": 0.0,
+          "min_response_time": 0.0,
+          "max_response_time": 0.0005013942718505859,
+          "p95_response_time": 0.0005008101463317872,
+          "p99_response_time": 0.000501255989074707,
+          "avg_memory_usage": 0.0006510416666666666,
+          "max_memory_usage": 0.00390625,
+          "requests_per_second": 59833.15263908702
+        },
+        "error_message": ""
+      },
+      {
+        "test_name": "coordinator_agent_baseline",
+        "description": "专利协调Agent性能基线测试",
+        "success": true,
+        "duration": 0.004999,
+        "start_time": "2025-09-10T18:02:48.847109",
+        "end_time": "2025-09-10T18:02:48.852108",
+        "metrics": {
+          "total_requests": 20,
+          "successful_requests": 20,
+          "success_rate": 1.0,
+          "avg_response_time": 0.0001002192497253418,
+          "median_response_time": 0.0,
+          "min_response_time": 0.0,
+          "max_response_time": 0.0005025863647460938,
+          "p95_response_time": 0.0005016803741455078,
+          "p99_response_time": 0.0005024051666259765,
+          "avg_memory_usage": 0.0021484375,
+          "max_memory_usage": 0.0078125,
+          "requests_per_second": 39794.15559772296
+        },
+        "error_message": ""
+      },
+      {
+        "test_name": "concurrent_analysis_light",
+        "description": "轻量级并发专利分析测试",
+        "success": true,
+        "duration": 0.005002,
+        "start_time": "2025-09-10T18:02:48.852608",
+        "end_time": "2025-09-10T18:02:48.857610",
+        "metrics": {
+          "total_requests": 50,
+          "successful_requests": 50,
+          "success_rate": 1.0,
+          "avg_response_time": 1.9545555114746095e-05,
+          "median_response_time": 0.0,
+          "min_response_time": 0.0,
+          "max_response_time": 0.000499725341796875,
+          "p95_response_time": 0.0,
+          "p99_response_time": 0.0004888606071472168,
+          "avg_memory_usage": 0.00203125,
+          "max_memory_usage": 0.0078125,
+          "requests_per_second": 100054.96183206108
+        },
+        "error_message": ""
+      },
+      {
+        "test_name": "memory_usage_monitoring",
+        "description": "内存使用监控性能测试",
+        "success": false,
+        "duration": 5.143047,
+        "start_time": "2025-09-10T18:02:48.858608",
+        "end_time": "2025-09-10T18:02:54.001655",
+        "metrics": {
+          "initial_memory": 53.18359375,
+          "final_memory": 53.2265625,
+          "memory_increase": 0.04296875,
+          "memory_samples": [
+            53.18359375,
+            53.22265625,
+            53.2265625,
+            53.2265625,
+            53.2265625,
+            53.2265625
+          ],
+          "max_memory": 53.2265625,
+          "avg_memory": 53.21875
+        },
+        "error_message": ""
+      }
+    ],
+    "aggregate_metrics": {
+      "avg_response_time": 6.771326065063476e-05,
+      "median_response_time": 8.33749771118164e-05,
+      "max_response_time": 0.0001002192497253418,
+      "min_response_time": 1.9545555114746095e-05,
+      "avg_success_rate": 1.0,
+      "avg_throughput": 66560.75668962368,
+      "max_throughput": 100054.96183206108
+    }
+  },
+  "specialized_results": {
+    "memory_leak_test": {
+      "initial_memory_mb": 53.234375,
+      "final_memory_mb": 53.2734375,
+      "memory_increase_mb": 0.0390625,
+      "memory_growth_trend": 0.005598958333333333,
+      "memory_samples": [
+        53.234375,
+        53.23828125,
+        53.23828125,
+        53.265625,
+        53.265625,
+        53.26953125,
+        53.2734375,
+        53.2734375,
+        53.2734375
+      ],
+      "cycles_tested": 8,
+      "leak_detected": false,
+      "max_memory_mb": 53.2734375,
+      "avg_memory_mb": 53.259114583333336
+    },
+    "regression_test": {
+      "baseline_avg_response_time": 0,
+      "current_avg_response_time": 0,
+      "response_time_regression_pct": 0,
+      "baseline_success_rate": 0.0,
+      "current_success_rate": 0.0,
+      "success_rate_regression_pct": 0.0,
+      "baseline_throughput": 0.0,
+      "current_throughput": 0.0,
+      "throughput_regression_pct": 0,
+      "regression_detected": false
+    },
+    "extreme_stress_test": {
+      "total_requests": 200,
+      "successful_requests": 0,
+      "failed_requests": 200,
+      "success_rate": 0.0,
+      "avg_response_time": 0,
+      "max_response_time": 0,
+      "requests_per_second": 0.0,
+      "peak_memory_usage": 53.8046875,
+      "peak_cpu_usage": 1.5,
+      "test_duration": 14.392634153366089,
+      "error_count": 200,
+      "system_survived": false
+    }
+  },
+  "overall_assessment": {
+    "overall_grade": "A",
+    "performance_score": 90,
+    "critical_issues": [],
+    "warnings": [
+      "基准测试成功率偏低"
+    ],
+    "strengths": [
+      "平均响应时间优秀",
+      "系统吞吐量优秀",
+      "未检测到内存泄漏"
+    ]
+  },
+  "recommendations": [
+    "建议优化错误处理机制，提高系统稳定性",
+    "系统在极限压力下表现不佳，建议增强容错能力",
+    "考虑实现熔断器和限流机制",
+    "建议定期运行性能测试以监控系统性能趋势",
+    "考虑建立性能监控告警机制",
+    "建议在生产环境中部署APM工具进行实时监控"
+  ]
+}

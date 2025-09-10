@@ -769,6 +769,12 @@ class Report:
 
 ## 技术栈
 
+### 包管理和运行环境
+- **包管理器**: uv (替代pip，提供更快的依赖解析)
+- **项目配置**: pyproject.toml (统一项目配置和依赖管理)
+- **虚拟环境**: uv自动管理的虚拟环境
+- **运行命令**: uv run (统一的应用启动方式)
+
 ### 后端技术栈
 - **Web框架**: FastAPI
 - **异步处理**: asyncio, aiohttp
@@ -786,7 +792,8 @@ class Report:
 - **UI组件**: Bootstrap 或 Tailwind CSS
 
 ### 部署技术栈
-- **容器化**: Docker
+- **包管理**: uv (Docker中使用uv进行依赖安装)
+- **容器化**: Docker (集成uv工作流)
 - **编排**: docker-compose
 - **反向代理**: Nginx
 - **监控**: 简单的日志监控
@@ -869,3 +876,127 @@ class ErrorHandler:
 - **访问限制**: API访问频率限制
 - **认证机制**: 简单的API密钥认证
 - **日志审计**: 详细的访问日志记录
+
+## uv包管理配置
+
+### pyproject.toml配置示例
+
+```toml
+[project]
+name = "patent-mvp-system"
+version = "0.1.0"
+description = "基于Multi-Agent-LangGraph的专利分析系统MVP"
+authors = [
+    {name = "Development Team", email = "dev@example.com"}
+]
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "aiohttp>=3.9.0",
+    "redis>=5.0.0",
+    "pandas>=2.1.0",
+    "numpy>=1.24.0",
+    "matplotlib>=3.7.0",
+    "plotly>=5.17.0",
+    "beautifulsoup4>=4.12.0",
+    "weasyprint>=60.0",
+    "jinja2>=3.1.0",
+    "pydantic>=2.5.0",
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.13.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.7.0",
+]
+test = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-mock>=3.12.0",
+    "httpx>=0.25.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=src --cov-report=html --cov-report=term-missing"
+asyncio_mode = "auto"
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+```
+
+### uv常用命令
+
+```bash
+# 项目初始化和依赖安装
+uv sync                          # 安装所有依赖
+uv add fastapi                   # 添加生产依赖
+uv add --dev pytest             # 添加开发依赖
+uv remove package-name          # 移除依赖
+
+# 运行应用和脚本
+uv run uvicorn src.multi_agent_service.main:app --reload
+uv run python -m pytest tests/
+uv run black src/
+uv run isort src/
+
+# 虚拟环境管理
+uv venv                         # 创建虚拟环境
+uv pip install -e .            # 开发模式安装
+```
+
+### Docker集成uv
+
+```dockerfile
+FROM python:3.11-slim
+
+# 安装uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+# 设置工作目录
+WORKDIR /app
+
+# 复制项目文件
+COPY pyproject.toml uv.lock ./
+COPY src/ src/
+
+# 使用uv安装依赖
+RUN uv sync --frozen
+
+# 使用uv运行应用
+CMD ["uv", "run", "uvicorn", "src.multi_agent_service.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```

@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  patent-service:
+    build:
+      target: builder
+    environment:
+      - APP_ENV=development
+      - LOG_LEVEL=DEBUG
+      - DEBUG=true
+      - AGENT_REGISTRY_AUTO_RELOAD=true
+      - HOT_RELOAD_ENABLED=true
+    volumes:
+      # Mount source code for development
+      - ./src:/app/src:ro
+      - ./config:/app/config:ro
+      - ./templates:/app/templates:ro
+      - ./tests:/app/tests:ro
+      # Development data persistence
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+      - ./data:/app/data
+    command: ["uv", "run", "uvicorn", "src.multi_agent_service.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    ports:
+      - "8000:8000"
+      - "8001:8001"  # Additional port for debugging
+
+  # Development database with exposed port
+  postgres:
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=patent_dev_db
+      - POSTGRES_USER=dev_user
+      - POSTGRES_PASSWORD=dev_pass
+
+  # Development Redis with exposed port
+  redis:
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  # Development tools container
+  dev-tools:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: patent-dev-tools
+    volumes:
+      - ./:/app
+    working_dir: /app
+    command: tail -f /dev/null
+    networks:
+      - patent-network
+    profiles:
+      - dev-tools

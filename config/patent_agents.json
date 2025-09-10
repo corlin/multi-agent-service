@@ -1,0 +1,218 @@
+{
+  "agents": {
+    "patent_data_collection_agent": {
+      "agent_id": "patent_data_collection_agent",
+      "name": "专利数据收集智能体",
+      "description": "负责从多个数据源收集专利数据，支持Google Patents、公开专利API等",
+      "agent_type": "patent_data_collection",
+      "enabled": true,
+      "capabilities": [
+        "专利数据处理",
+        "专利数据源集成",
+        "多源数据并行收集",
+        "数据质量验证",
+        "数据去重处理",
+        "Google Patents API集成",
+        "公开专利API集成",
+        "数据缓存管理"
+      ],
+      "llm_config": {
+        "provider": "qwen",
+        "model_name": "qwen-turbo",
+        "api_key": "${QWEN_API_KEY}",
+        "api_base": "https://dashscope.aliyuncs.com/api/v1",
+        "max_tokens": 2000,
+        "temperature": 0.3,
+        "timeout": 30,
+        "retry_attempts": 3
+      },
+      "prompt_template": "你是专利数据收集智能体，负责从多个数据源收集和整理专利数据。请确保数据的准确性和完整性。",
+      "system_prompt": "作为专利数据收集智能体，你需要：1. 从多个专利数据源收集数据 2. 验证数据质量 3. 去重和标准化处理 4. 提供高质量的专利数据集",
+      "max_concurrent_tasks": 3,
+      "priority": 7,
+      "metadata": {
+        "department": "patent_analysis",
+        "expertise_areas": ["专利数据收集", "数据质量控制", "API集成"],
+        "patent_config": {
+          "max_patents_per_source": 1000,
+          "parallel_collection": true,
+          "data_validation_enabled": true,
+          "deduplication_enabled": true,
+          "supported_data_sources": [
+            "google_patents",
+            "patent_public_api"
+          ]
+        }
+      }
+    },
+    "patent_search_agent": {
+      "agent_id": "patent_search_agent",
+      "name": "专利搜索增强智能体",
+      "description": "集成CNKI学术搜索、博查AI搜索和网页爬取，提供增强的专利相关信息",
+      "agent_type": "patent_search",
+      "enabled": true,
+      "capabilities": [
+        "专利数据处理",
+        "CNKI学术搜索集成",
+        "博查AI智能搜索",
+        "网页爬取增强",
+        "多源搜索结果整合",
+        "搜索结果质量评估",
+        "实时信息获取",
+        "学术文献检索"
+      ],
+      "llm_config": {
+        "provider": "qwen",
+        "model_name": "qwen-turbo",
+        "api_key": "${QWEN_API_KEY}",
+        "api_base": "https://dashscope.aliyuncs.com/api/v1",
+        "max_tokens": 2000,
+        "temperature": 0.4,
+        "timeout": 30,
+        "retry_attempts": 3
+      },
+      "prompt_template": "你是专利搜索增强智能体，负责通过多种渠道搜索和收集专利相关信息。请提供全面和准确的搜索结果。",
+      "system_prompt": "作为专利搜索增强智能体，你需要：1. 集成多种搜索源 2. 进行智能信息检索 3. 评估搜索结果质量 4. 提供增强的专利信息",
+      "max_concurrent_tasks": 2,
+      "priority": 6,
+      "metadata": {
+        "department": "patent_analysis",
+        "expertise_areas": ["学术搜索", "网络爬取", "信息检索"],
+        "search_config": {
+          "enable_cnki_search": true,
+          "enable_bocha_search": true,
+          "enable_web_crawling": true,
+          "max_search_results": 100,
+          "search_timeout": 60
+        }
+      }
+    },
+    "patent_analysis_agent": {
+      "agent_id": "patent_analysis_agent",
+      "name": "专利分析处理智能体",
+      "description": "执行专利趋势分析、技术分类、竞争分析等多维度专利分析",
+      "agent_type": "patent_analysis",
+      "enabled": true,
+      "capabilities": [
+        "专利数据处理",
+        "专利趋势分析",
+        "技术分类统计",
+        "竞争格局分析",
+        "地域分布分析",
+        "IPC分类分析",
+        "申请人统计分析",
+        "时间序列分析",
+        "技术演进预测"
+      ],
+      "llm_config": {
+        "provider": "qwen",
+        "model_name": "qwen-plus",
+        "api_key": "${QWEN_API_KEY}",
+        "api_base": "https://dashscope.aliyuncs.com/api/v1",
+        "max_tokens": 4000,
+        "temperature": 0.2,
+        "timeout": 60,
+        "retry_attempts": 2
+      },
+      "prompt_template": "你是专利分析处理智能体，负责对专利数据进行深度分析和洞察挖掘。请提供专业的分析结果和建议。",
+      "system_prompt": "作为专利分析智能体，你需要：1. 进行多维度专利分析 2. 识别技术趋势和模式 3. 分析竞争格局 4. 提供专业的分析洞察",
+      "max_concurrent_tasks": 2,
+      "priority": 8,
+      "metadata": {
+        "department": "patent_analysis",
+        "expertise_areas": ["趋势分析", "竞争分析", "技术分类"],
+        "analysis_config": {
+          "enable_trend_analysis": true,
+          "enable_tech_classification": true,
+          "enable_competition_analysis": true,
+          "enable_geographic_analysis": true,
+          "min_patents_for_analysis": 10,
+          "confidence_threshold": 0.7
+        }
+      }
+    },
+    "patent_coordinator_agent": {
+      "agent_id": "patent_coordinator_agent",
+      "name": "专利协调管理智能体",
+      "description": "协调专利分析工作流，管理多个Agent的协作和任务分配",
+      "agent_type": "patent_coordinator",
+      "enabled": true,
+      "capabilities": [
+        "专利数据处理",
+        "专利分析工作流编排",
+        "多Agent任务协调",
+        "分析结果整合",
+        "质量控制管理",
+        "进度监控跟踪",
+        "异常处理恢复",
+        "资源调度优化"
+      ],
+      "llm_config": {
+        "provider": "qwen",
+        "model_name": "qwen-plus",
+        "api_key": "${QWEN_API_KEY}",
+        "api_base": "https://dashscope.aliyuncs.com/api/v1",
+        "max_tokens": 3000,
+        "temperature": 0.1,
+        "timeout": 60,
+        "retry_attempts": 2
+      },
+      "prompt_template": "你是专利协调管理智能体，负责统筹协调专利分析工作流程。请合理分配任务并确保高质量的分析结果。",
+      "system_prompt": "作为专利协调智能体，你需要：1. 编排专利分析工作流 2. 协调多个Agent协作 3. 监控分析质量 4. 整合最终结果",
+      "max_concurrent_tasks": 5,
+      "priority": 9,
+      "metadata": {
+        "department": "patent_analysis",
+        "expertise_areas": ["工作流编排", "任务协调", "质量控制"],
+        "coordination_config": {
+          "max_workflow_duration": 1800,
+          "enable_parallel_execution": true,
+          "quality_threshold": 0.7,
+          "auto_retry_failed_steps": true
+        }
+      }
+    },
+    "patent_report_agent": {
+      "agent_id": "patent_report_agent",
+      "name": "专利报告生成智能体",
+      "description": "生成专业的专利分析报告，支持HTML和PDF格式",
+      "agent_type": "patent_report",
+      "enabled": true,
+      "capabilities": [
+        "专利数据处理",
+        "专利分析报告生成",
+        "多格式报告导出",
+        "图表自动生成",
+        "报告模板管理",
+        "内容质量检查",
+        "报告版本控制",
+        "批量报告生成"
+      ],
+      "llm_config": {
+        "provider": "qwen",
+        "model_name": "qwen-turbo",
+        "api_key": "${QWEN_API_KEY}",
+        "api_base": "https://dashscope.aliyuncs.com/api/v1",
+        "max_tokens": 4000,
+        "temperature": 0.3,
+        "timeout": 30,
+        "retry_attempts": 2
+      },
+      "prompt_template": "你是专利报告生成智能体，负责生成专业的专利分析报告。请确保报告内容准确、结构清晰、图表丰富。",
+      "system_prompt": "作为专利报告生成智能体，你需要：1. 生成专业的分析报告 2. 创建清晰的图表和可视化 3. 确保报告质量 4. 支持多种格式导出",
+      "max_concurrent_tasks": 3,
+      "priority": 6,
+      "metadata": {
+        "department": "patent_analysis",
+        "expertise_areas": ["报告生成", "数据可视化", "内容编写"],
+        "report_config": {
+          "supported_formats": ["html", "pdf"],
+          "template_directory": "templates/patent",
+          "chart_generation_enabled": true,
+          "max_report_size": 52428800,
+          "default_template": "comprehensive_report.html"
+        }
+      }
+    }
+  }
+}

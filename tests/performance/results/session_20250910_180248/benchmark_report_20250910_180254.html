@@ -1,0 +1,81 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>专利系统性能基准测试报告</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background-color: #f0f0f0; padding: 20px; border-radius: 5px; }
+        .summary { margin: 20px 0; }
+        .test-result { margin: 10px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; }
+        .failure { background-color: #f8d7da; }
+        .metrics { margin: 10px 0; }
+        .metric { display: inline-block; margin: 5px 10px; padding: 5px; background-color: #e9ecef; border-radius: 3px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>专利系统性能基准测试报告</h1>
+        <p>生成时间: 2025-09-10T18:02:48.838609</p>
+        <p>测试持续时间: 5.16 秒</p>
+    </div>
+    
+    <div class="summary">
+        <h2>测试概要</h2>
+        <div class="metrics">
+            <span class="metric">总测试数: 4</span>
+            <span class="metric">成功测试: 3</span>
+            <span class="metric">失败测试: 1</span>
+            <span class="metric">成功率: 75.00%</span>
+        </div>
+    </div>
+    
+    <div class="system-info">
+        <h2>系统信息</h2>
+        <div class="metrics">
+            <span class="metric">CPU核心数: 8</span>
+            <span class="metric">内存总量: 47.86 GB</span>
+            <span class="metric">Python版本: 3.12.7</span>
+            <span class="metric">平台: win32</span>
+        </div>
+    </div>
+    
+    <div class="test-results">
+        <h2>测试结果详情</h2>
+
+        <div class="test-result success">
+            <h3>single_agent_baseline - ✅ 通过</h3>
+            <p><strong>描述:</strong> 单个专利Agent性能基线测试</p>
+            <p><strong>执行时间:</strong> 0.01 秒</p>
+<div class='metrics'><strong>性能指标:</strong><br><span class='metric'>total_requests: 30.000</span><span class='metric'>successful_requests: 30.000</span><span class='metric'>success_rate: 1.000</span><span class='metric'>avg_response_time: 0.000</span><span class='metric'>median_response_time: 0.000</span><span class='metric'>min_response_time: 0.000</span><span class='metric'>max_response_time: 0.001</span><span class='metric'>p95_response_time: 0.001</span><span class='metric'>p99_response_time: 0.001</span><span class='metric'>avg_memory_usage: 0.001</span><span class='metric'>max_memory_usage: 0.004</span><span class='metric'>requests_per_second: 59833.153</span></div></div>
+        <div class="test-result success">
+            <h3>coordinator_agent_baseline - ✅ 通过</h3>
+            <p><strong>描述:</strong> 专利协调Agent性能基线测试</p>
+            <p><strong>执行时间:</strong> 0.00 秒</p>
+<div class='metrics'><strong>性能指标:</strong><br><span class='metric'>total_requests: 20.000</span><span class='metric'>successful_requests: 20.000</span><span class='metric'>success_rate: 1.000</span><span class='metric'>avg_response_time: 0.000</span><span class='metric'>median_response_time: 0.000</span><span class='metric'>min_response_time: 0.000</span><span class='metric'>max_response_time: 0.001</span><span class='metric'>p95_response_time: 0.001</span><span class='metric'>p99_response_time: 0.001</span><span class='metric'>avg_memory_usage: 0.002</span><span class='metric'>max_memory_usage: 0.008</span><span class='metric'>requests_per_second: 39794.156</span></div></div>
+        <div class="test-result success">
+            <h3>concurrent_analysis_light - ✅ 通过</h3>
+            <p><strong>描述:</strong> 轻量级并发专利分析测试</p>
+            <p><strong>执行时间:</strong> 0.01 秒</p>
+<div class='metrics'><strong>性能指标:</strong><br><span class='metric'>total_requests: 50.000</span><span class='metric'>successful_requests: 50.000</span><span class='metric'>success_rate: 1.000</span><span class='metric'>avg_response_time: 0.000</span><span class='metric'>median_response_time: 0.000</span><span class='metric'>min_response_time: 0.000</span><span class='metric'>max_response_time: 0.000</span><span class='metric'>p95_response_time: 0.000</span><span class='metric'>p99_response_time: 0.000</span><span class='metric'>avg_memory_usage: 0.002</span><span class='metric'>max_memory_usage: 0.008</span><span class='metric'>requests_per_second: 100054.962</span></div></div>
+        <div class="test-result failure">
+            <h3>memory_usage_monitoring - ❌ 失败</h3>
+            <p><strong>描述:</strong> 内存使用监控性能测试</p>
+            <p><strong>执行时间:</strong> 5.14 秒</p>
+</div>
+        <div class="aggregate-metrics">
+            <h2>聚合性能指标</h2>
+            <div class="metrics">
+<span class='metric'>avg_response_time: 0.000</span><span class='metric'>median_response_time: 0.000</span><span class='metric'>max_response_time: 0.000</span><span class='metric'>min_response_time: 0.000</span><span class='metric'>avg_success_rate: 1.000</span><span class='metric'>avg_throughput: 66560.757</span><span class='metric'>max_throughput: 100054.962</span>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

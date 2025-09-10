@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>专利分析系统监控面板</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .dashboard-card {
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .dashboard-card:hover {
+            transform: translateY(-2px);
+        }
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        .metric-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        .status-healthy {
+            color: #28a745;
+        }
+        .status-warning {
+            color: #ffc107;
+        }
+        .status-danger {
+            color: #dc3545;
+        }
+        .alert-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        .refresh-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- 刷新指示器 -->
+    <div id="refreshIndicator" class="refresh-indicator">
+        <div class="spinner-border text-primary" role="status" style="display: none;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <div class="container-fluid py-4">
+        <!-- 页面标题 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-chart-line text-primary"></i>
+                    专利分析系统监控面板
+                </h1>
+                <p class="text-muted">实时监控专利分析系统的运行状态和性能指标</p>
+            </div>
+        </div>
+
+        <!-- 概览指标卡片 -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card dashboard-card h-100">
+                    <div class="card-body text-center position-relative">
+                        <div id="alertBadge" class="badge bg-danger alert-badge" style="display: none;">0</div>
+                        <i class="fas fa-robot fa-2x text-primary mb-2"></i>
+                        <div class="metric-value" id="totalAgents">-</div>
+                        <div class="metric-label">专利Agent总数</div>
+                        <small class="text-muted">健康: <span id="healthyAgents" class="status-healthy">-</span></small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card dashboard-card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-chart-bar fa-2x text-success mb-2"></i>
+                        <div class="metric-value" id="analysisCount">-</div>
+                        <div class="metric-label">分析任务总数</div>
+                        <small class="text-muted">成功率: <span id="analysisSuccessRate" class="status-healthy">-</span></small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card dashboard-card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-database fa-2x text-info mb-2"></i>
+                        <div class="metric-value" id="dataCollectionCount">-</div>
+                        <div class="metric-label">数据收集次数</div>
+                        <small class="text-muted">缓存命中: <span id="cacheHitRate" class="status-healthy">-</span></small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card dashboard-card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-file-alt fa-2x text-warning mb-2"></i>
+                        <div class="metric-value" id="reportCount">-</div>
+                        <div class="metric-label">报告生成数</div>
+                        <small class="text-muted">数据质量: <span id="dataQuality" class="status-healthy">-</span></small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 图表区域 -->
+        <div class="row mb-4">
+            <!-- Agent健康状态饼图 -->
+            <div class="col-md-4 mb-3">
+                <div class="card dashboard-card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-heartbeat text-danger"></i>
+                            Agent健康状态
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="agentHealthChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 性能趋势图 -->
+            <div class="col-md-8 mb-3">
+                <div class="card dashboard-card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-line text-primary"></i>
+                            性能趋势 (24小时)
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="performanceTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 活动分解和告警 -->
+        <div class="row mb-4">
+            <!-- 活动分解柱状图 -->
+            <div class="col-md-6 mb-3">
+                <div class="card dashboard-card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-tasks text-success"></i>
+                            活动分解
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="activityBreakdownChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 告警信息 -->
+            <div class="col-md-6 mb-3">
+                <div class="card dashboard-card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-exclamation-triangle text-warning"></i>
+                            系统告警
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="alertsList" class="overflow-auto" style="max-height: 250px;">
+                            <div class="text-center text-muted">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                加载中...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agent状态详情 -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-list text-info"></i>
+                            Agent状态详情
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Agent ID</th>
+                                        <th>状态</th>
+                                        <th>最后检查时间</th>
+                                        <th>连续失败次数</th>
+                                        <th>检查间隔</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="agentStatusTable">
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted">
+                                            <i class="fas fa-spinner fa-spin"></i>
+                                            加载中...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 脚本 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 全局变量
+        let charts = {};
+        let refreshInterval;
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+            loadDashboardData();
+            
+            // 设置自动刷新
+            refreshInterval = setInterval(loadDashboardData, 30000); // 30秒刷新一次
+        });
+        
+        // 初始化图表
+        function initializeCharts() {
+            // Agent健康状态饼图
+            const agentHealthCtx = document.getElementById('agentHealthChart').getContext('2d');
+            charts.agentHealth = new Chart(agentHealthCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['健康', '不健康'],
+                    datasets: [{
+                        data: [0, 0],
+                        backgroundColor: ['#28a745', '#dc3545'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+            
+            // 性能趋势图
+            const performanceTrendCtx = document.getElementById('performanceTrendChart').getContext('2d');
+            charts.performanceTrend = new Chart(performanceTrendCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: '分析耗时(秒)',
+                            data: [],
+                            borderColor: '#007bff',
+                            backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '成功率(%)',
+                            data: [],
+                            borderColor: '#28a745',
+                            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: '耗时(秒)'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: '成功率(%)'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        }
+                    }
+                }
+            });
+            
+            // 活动分解柱状图
+            const activityBreakdownCtx = document.getElementById('activityBreakdownChart').getContext('2d');
+            charts.activityBreakdown = new Chart(activityBreakdownCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['数据收集', '搜索增强', '分析处理', '报告生成'],
+                    datasets: [{
+                        label: '活动次数',
+                        data: [0, 0, 0, 0],
+                        backgroundColor: [
+                            '#007bff',
+                            '#28a745', 
+                            '#ffc107',
+                            '#17a2b8'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '次数'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 加载面板数据
+        async function loadDashboardData() {
+            showRefreshIndicator(true);
+            
+            try {
+                const response = await fetch('/api/v1/patent/dashboard');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateOverviewMetrics(data.overview, data.performance, data.activity);
+                    updateCharts(data.charts_data);
+                    updateAlerts(data.alerts);
+                    updateAgentStatusTable(data.agents_status);
+                } else {
+                    console.error('Failed to load dashboard data:', data);
+                    showError('加载面板数据失败');
+                }
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                showError('网络错误，无法加载数据');
+            } finally {
+                showRefreshIndicator(false);
+            }
+        }
+        
+        // 更新概览指标
+        function updateOverviewMetrics(overview, performance, activity) {
+            document.getElementById('totalAgents').textContent = overview.total_patent_agents || 0;
+            document.getElementById('healthyAgents').textContent = overview.healthy_patent_agents || 0;
+            document.getElementById('analysisCount').textContent = performance.patent_analysis_count || 0;
+            document.getElementById('analysisSuccessRate').textContent = 
+                (performance.patent_analysis_success_rate || 0).toFixed(1) + '%';
+            document.getElementById('dataCollectionCount').textContent = activity.data_collection_count || 0;
+            document.getElementById('cacheHitRate').textContent = 
+                (performance.patent_cache_hit_rate || 0).toFixed(1) + '%';
+            document.getElementById('reportCount').textContent = activity.report_generation_count || 0;
+            document.getElementById('dataQuality').textContent = 
+                (performance.patent_data_quality_avg || 0).toFixed(2);
+            
+            // 更新告警徽章
+            const alertBadge = document.getElementById('alertBadge');
+            if (overview.active_alerts > 0) {
+                alertBadge.textContent = overview.active_alerts;
+                alertBadge.style.display = 'block';
+            } else {
+                alertBadge.style.display = 'none';
+            }
+        }
+        
+        // 更新图表
+        function updateCharts(chartsData) {
+            // 更新Agent健康状态饼图
+            if (chartsData.agent_health_distribution && charts.agentHealth) {
+                const healthData = chartsData.agent_health_distribution.data;
+                charts.agentHealth.data.datasets[0].data = healthData.datasets[0].data;
+                charts.agentHealth.update();
+            }
+            
+            // 更新性能趋势图
+            if (chartsData.performance_trends && charts.performanceTrend) {
+                const trendData = chartsData.performance_trends.data;
+                charts.performanceTrend.data.labels = trendData.labels;
+                charts.performanceTrend.data.datasets = trendData.datasets;
+                charts.performanceTrend.update();
+            }
+            
+            // 更新活动分解图
+            if (chartsData.activity_breakdown && charts.activityBreakdown) {
+                const activityData = chartsData.activity_breakdown.data;
+                charts.activityBreakdown.data.datasets[0].data = activityData.datasets[0].data;
+                charts.activityBreakdown.update();
+            }
+        }
+        
+        // 更新告警列表
+        function updateAlerts(alerts) {
+            const alertsList = document.getElementById('alertsList');
+            
+            if (!alerts || alerts.length === 0) {
+                alertsList.innerHTML = `
+                    <div class="text-center text-success">
+                        <i class="fas fa-check-circle fa-2x mb-2"></i>
+                        <p class="mb-0">系统运行正常，无告警信息</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let alertsHtml = '';
+            alerts.forEach(alert => {
+                const severityClass = getSeverityClass(alert.severity);
+                const severityIcon = getSeverityIcon(alert.severity);
+                
+                alertsHtml += `
+                    <div class="alert alert-${severityClass} alert-dismissible fade show mb-2" role="alert">
+                        <i class="fas ${severityIcon} me-2"></i>
+                        <strong>${alert.type}:</strong> ${alert.message}
+                        <small class="d-block text-muted mt-1">${formatTimestamp(alert.timestamp)}</small>
+                    </div>
+                `;
+            });
+            
+            alertsList.innerHTML = alertsHtml;
+        }
+        
+        // 更新Agent状态表格
+        function updateAgentStatusTable(agentsStatus) {
+            const tableBody = document.getElementById('agentStatusTable');
+            
+            if (!agentsStatus || Object.keys(agentsStatus).length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">暂无Agent状态数据</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            let tableHtml = '';
+            Object.entries(agentsStatus).forEach(([agentId, status]) => {
+                const statusClass = getStatusClass(status.status);
+                const statusIcon = getStatusIcon(status.status);
+                
+                tableHtml += `
+                    <tr>
+                        <td><code>${agentId}</code></td>
+                        <td>
+                            <span class="badge bg-${statusClass}">
+                                <i class="fas ${statusIcon} me-1"></i>
+                                ${status.status}
+                            </span>
+                        </td>
+                        <td>${formatTimestamp(status.last_check_time)}</td>
+                        <td>
+                            <span class="badge ${status.consecutive_failures > 0 ? 'bg-warning' : 'bg-success'}">
+                                ${status.consecutive_failures}
+                            </span>
+                        </td>
+                        <td>${status.current_interval_seconds}s</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="checkAgentNow('${agentId}')">
+                                <i class="fas fa-sync-alt"></i> 立即检查
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tableBody.innerHTML = tableHtml;
+        }
+        
+        // 立即检查Agent
+        async function checkAgentNow(agentId) {
+            try {
+                const response = await fetch(`/api/v1/health/patent/agent/${agentId}`, {
+                    method: 'GET'
+                });
+                
+                if (response.ok) {
+                    showSuccess(`Agent ${agentId} 检查完成`);
+                    // 刷新数据
+                    setTimeout(loadDashboardData, 1000);
+                } else {
+                    showError(`Agent ${agentId} 检查失败`);
+                }
+            } catch (error) {
+                console.error('Error checking agent:', error);
+                showError('检查Agent时发生网络错误');
+            }
+        }
+        
+        // 工具函数
+        function getSeverityClass(severity) {
+            const classes = {
+                'critical': 'danger',
+                'warning': 'warning',
+                'info': 'info'
+            };
+            return classes[severity] || 'secondary';
+        }
+        
+        function getSeverityIcon(severity) {
+            const icons = {
+                'critical': 'fa-exclamation-triangle',
+                'warning': 'fa-exclamation-circle',
+                'info': 'fa-info-circle'
+            };
+            return icons[severity] || 'fa-question-circle';
+        }
+        
+        function getStatusClass(status) {
+            const classes = {
+                'healthy': 'success',
+                'unhealthy': 'danger',
+                'cooldown': 'warning',
+                'unknown': 'secondary'
+            };
+            return classes[status] || 'secondary';
+        }
+        
+        function getStatusIcon(status) {
+            const icons = {
+                'healthy': 'fa-check',
+                'unhealthy': 'fa-times',
+                'cooldown': 'fa-clock',
+                'unknown': 'fa-question'
+            };
+            return icons[status] || 'fa-question';
+        }
+        
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return '-';
+            return new Date(timestamp).toLocaleString('zh-CN');
+        }
+        
+        function showRefreshIndicator(show) {
+            const indicator = document.querySelector('#refreshIndicator .spinner-border');
+            indicator.style.display = show ? 'block' : 'none';
+        }
+        
+        function showSuccess(message) {
+            // 简单的成功提示，可以替换为更好的通知组件
+            alert('成功: ' + message);
+        }
+        
+        function showError(message) {
+            // 简单的错误提示，可以替换为更好的通知组件
+            alert('错误: ' + message);
+        }
+        
+        // 页面卸载时清理
+        window.addEventListener('beforeunload', function() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        });
+    </script>
+</body>
+</html>

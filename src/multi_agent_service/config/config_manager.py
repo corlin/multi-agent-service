@@ -91,6 +91,11 @@ class ConfigManager:
             "agents.yaml": self._load_agent_configs,
             "models.yaml": self._load_model_configs,
             "workflows.yaml": self._load_workflow_configs,
+            # Patent analysis configurations
+            "patent_agents.json": self._load_agent_configs,
+            "patent_workflows.json": self._load_workflow_configs,
+            "patent_agents.yaml": self._load_agent_configs,
+            "patent_workflows.yaml": self._load_workflow_configs,
         }
         
         for filename, loader_func in config_files.items():
@@ -461,7 +466,7 @@ class ConfigManager:
                 
                 if config_type is None or config_type == "agents":
                     self._agent_configs.clear()
-                    for filename in ["agents.json", "agents.yaml"]:
+                    for filename in ["agents.json", "agents.yaml", "patent_agents.json", "patent_agents.yaml"]:
                         config_path = self.config_dir / filename
                         if config_path.exists():
                             self._load_agent_configs(config_path)
@@ -475,7 +480,7 @@ class ConfigManager:
                 
                 if config_type is None or config_type == "workflows":
                     self._workflow_configs.clear()
-                    for filename in ["workflows.json", "workflows.yaml"]:
+                    for filename in ["workflows.json", "workflows.yaml", "patent_workflows.json", "patent_workflows.yaml"]:
                         config_path = self.config_dir / filename
                         if config_path.exists():
                             self._load_workflow_configs(config_path)
@@ -496,11 +501,11 @@ class ConfigManager:
         filename = file_path.name
         
         try:
-            if filename.startswith("agents."):
+            if filename.startswith("agents.") or filename.startswith("patent_agents."):
                 self._load_agent_configs(file_path)
             elif filename.startswith("models."):
                 self._load_model_configs(file_path)
-            elif filename.startswith("workflows."):
+            elif filename.startswith("workflows.") or filename.startswith("patent_workflows."):
                 self._load_workflow_configs(file_path)
             elif filename == ".env":
                 self._settings = Settings()

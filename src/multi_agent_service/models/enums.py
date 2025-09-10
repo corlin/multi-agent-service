@@ -10,6 +10,12 @@ class AgentType(str, Enum):
     MANAGER = "manager"  # 公司管理者智能体
     FIELD_SERVICE = "field_service"  # 现场服务人员智能体
     CUSTOMER_SUPPORT = "customer_support"  # 客服专员智能体
+    # Patent analysis agents
+    PATENT_DATA_COLLECTION = "patent_data_collection"  # 专利数据收集智能体
+    PATENT_SEARCH = "patent_search"  # 专利搜索增强智能体
+    PATENT_ANALYSIS = "patent_analysis"  # 专利分析处理智能体
+    PATENT_COORDINATOR = "patent_coordinator"  # 专利协调管理智能体
+    PATENT_REPORT = "patent_report"  # 专利报告生成智能体
 
 
 class IntentType(str, Enum):

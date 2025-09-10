@@ -75,6 +75,19 @@ from .state_management import (
     EventEmitter,
     StateTransition
 )
+from .patent_workflow_engine import (
+    PatentWorkflowNode,
+    PatentGraphBuilder,
+    PatentWorkflowEngine,
+    PatentWorkflowFactory
+)
+from .patent_workflow_registry import (
+    PatentWorkflowRegistry,
+    register_patent_workflows,
+    get_patent_workflow_info,
+    validate_patent_workflow_system,
+    initialize_patent_workflow_system
+)
 
 __all__ = [
     # Graph Builder
@@ -150,5 +163,18 @@ __all__ = [
     "SnapshotManager",
     "MessageFilter",
     "EventEmitter",
-    "StateTransition"
+    "StateTransition",
+    
+    # Patent Workflow Engine
+    "PatentWorkflowNode",
+    "PatentGraphBuilder",
+    "PatentWorkflowEngine",
+    "PatentWorkflowFactory",
+    
+    # Patent Workflow Registry
+    "PatentWorkflowRegistry",
+    "register_patent_workflows",
+    "get_patent_workflow_info",
+    "validate_patent_workflow_system",
+    "initialize_patent_workflow_system"
 ]

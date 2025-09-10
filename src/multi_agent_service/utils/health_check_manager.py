@@ -365,3 +365,230 @@ class HealthCheckManager:
                 "registered_services": list(self.trackers.keys())
             }
         }
+    
+    # 专利Agent健康检查专用方法
+    def register_patent_agent(self, agent_id: str, agent_instance) -> None:
+        """注册专利Agent健康检查."""
+        async def patent_agent_health_check():
+            """专利Agent健康检查函数."""
+            try:
+                # 检查Agent基本状态
+                if not hasattr(agent_instance, 'is_active') or not agent_instance.is_active:
+                    return False
+                
+                # 检查Agent特定的健康状态
+                if hasattr(agent_instance, '_health_check_specific'):
+                    agent_health = await agent_instance._health_check_specific()
+                    if not agent_health:
+                        return False
+                
+                # 检查专利数据源连接状态
+                if hasattr(agent_instance, '_patent_data_sources'):
+                    active_sources = 0
+                    for source_name, source_config in agent_instance._patent_data_sources.items():
+                        if source_config.get('status') == 'active':
+                            active_sources += 1
+                    
+                    if active_sources == 0:
+                        self.logger.warning(f"Patent agent {agent_id} has no active data sources")
+                        return False
+                
+                # 检查缓存状态
+                if (hasattr(agent_instance, 'patent_config') and 
+                    agent_instance.patent_config.get('cache_enabled') and
+                    hasattr(agent_instance, '_patent_cache') and
+                    agent_instance._patent_cache is None):
+                    self.logger.warning(f"Patent agent {agent_id} cache not initialized")
+                    return False
+                
+                # 检查当前负载
+                if (hasattr(agent_instance, '_active_patent_requests') and
+                    hasattr(agent_instance, 'patent_config')):
+                    max_concurrent = agent_instance.patent_config.get('max_concurrent_requests', 5)
+                    current_load = len(agent_instance._active_patent_requests)
+                    if current_load >= max_concurrent:
+                        self.logger.warning(f"Patent agent {agent_id} at maximum capacity: {current_load}/{max_concurrent}")
+                        return False
+                
+                return True
+                
+            except Exception as e:
+                self.logger.error(f"Patent agent health check failed for {agent_id}: {str(e)}")
+                return False
+        
+        self.register_service(f"patent_agent_{agent_id}", patent_agent_health_check)
+        self.logger.info(f"Registered patent agent health check: {agent_id}")
+    
+    def unregister_patent_agent(self, agent_id: str) -> None:
+        """注销专利Agent健康检查."""
+        service_id = f"patent_agent_{agent_id}"
+        self.unregister_service(service_id)
+        self.logger.info(f"Unregistered patent agent health check: {agent_id}")
+    
+    async def check_patent_data_sources(self, data_sources: Dict[str, Dict[str, Any]]) -> Dict[str, bool]:
+        """检查专利数据源连接状态."""
+        results = {}
+        
+        for source_name, source_config in data_sources.items():
+            try:
+                # 这里可以添加具体的数据源连接检查逻辑
+                # 例如发送测试请求到API端点
+                
+                if source_config.get('status') == 'active':
+                    # 模拟检查逻辑，实际实现中应该发送真实的测试请求
+                    results[source_name] = True
+                else:
+                    results[source_name] = False
+                    
+            except Exception as e:
+                self.logger.error(f"Failed to check patent data source {source_name}: {str(e)}")
+                results[source_name] = False
+        
+        return results
+    
+    async def check_patent_api_endpoints(self) -> Dict[str, Dict[str, Any]]:
+        """检查专利API端点健康状态."""
+        endpoints = {
+            'google_patents': {
+                'url': 'https://patents.google.com/api',
+                'timeout': 10
+            },
+            'cnki_api': {
+                'url': 'https://api.cnki.net',  # 示例URL
+                'timeout': 15
+            },
+            'bocha_ai': {
+                'url': 'https://api.bocha.ai',  # 示例URL
+                'timeout': 15
+            }
+        }
+        
+        results = {}
+        
+        for endpoint_name, config in endpoints.items():
+            try:
+                import aiohttp
+                async with aiohttp.ClientSession() as session:
+                    start_time = time.time()
+                    async with session.get(
+                        config['url'], 
+                        timeout=aiohttp.ClientTimeout(total=config['timeout'])
+                    ) as response:
+                        response_time = time.time() - start_time
+                        
+                        results[endpoint_name] = {
+                            'status': 'healthy' if response.status < 500 else 'unhealthy',
+                            'status_code': response.status,
+                            'response_time': response_time,
+                            'timestamp': datetime.now().isoformat()
+                        }
+                        
+            except asyncio.TimeoutError:
+                results[endpoint_name] = {
+                    'status': 'unhealthy',
+                    'error': 'timeout',
+                    'response_time': config['timeout'],
+                    'timestamp': datetime.now().isoformat()
+                }
+            except Exception as e:
+                results[endpoint_name] = {
+                    'status': 'unhealthy',
+                    'error': str(e),
+                    'timestamp': datetime.now().isoformat()
+                }
+        
+        return results
+    
+    def get_patent_agents_status(self) -> Dict[str, Any]:
+        """获取所有专利Agent的健康状态."""
+        patent_services = {}
+        patent_healthy_count = 0
+        patent_total_count = 0
+        
+        for service_id, tracker in self.trackers.items():
+            if service_id.startswith('patent_agent_'):
+                agent_id = service_id.replace('patent_agent_', '')
+                status_info = tracker.get_status_info()
+                patent_services[agent_id] = status_info
+                patent_total_count += 1
+                
+                if tracker.current_status == HealthCheckStatus.HEALTHY:
+                    patent_healthy_count += 1
+        
+        return {
+            "patent_agents_healthy": patent_healthy_count == patent_total_count and patent_total_count > 0,
+            "healthy_patent_agents": patent_healthy_count,
+            "total_patent_agents": patent_total_count,
+            "patent_health_percentage": (patent_healthy_count / patent_total_count * 100) if patent_total_count > 0 else 0,
+            "patent_agents": patent_services,
+            "timestamp": datetime.now().isoformat()
+        }
+    
+    async def comprehensive_patent_health_check(self) -> Dict[str, Any]:
+        """执行全面的专利系统健康检查."""
+        results = {
+            "timestamp": datetime.now().isoformat(),
+            "overall_status": "healthy"
+        }
+        
+        try:
+            # 检查专利Agent状态
+            patent_agents_status = self.get_patent_agents_status()
+            results["patent_agents"] = patent_agents_status
+            
+            if not patent_agents_status["patent_agents_healthy"]:
+                results["overall_status"] = "unhealthy"
+            
+            # 检查专利API端点
+            api_endpoints_status = await self.check_patent_api_endpoints()
+            results["api_endpoints"] = api_endpoints_status
+            
+            unhealthy_endpoints = [
+                name for name, status in api_endpoints_status.items() 
+                if status.get('status') != 'healthy'
+            ]
+            if unhealthy_endpoints:
+                results["overall_status"] = "degraded"
+                results["unhealthy_endpoints"] = unhealthy_endpoints
+            
+            # 生成健康检查摘要
+            results["summary"] = {
+                "total_patent_agents": patent_agents_status["total_patent_agents"],
+                "healthy_patent_agents": patent_agents_status["healthy_patent_agents"],
+                "total_api_endpoints": len(api_endpoints_status),
+                "healthy_api_endpoints": len([
+                    s for s in api_endpoints_status.values() 
+                    if s.get('status') == 'healthy'
+                ]),
+                "overall_health_score": self._calculate_patent_health_score(
+                    patent_agents_status, api_endpoints_status
+                )
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Comprehensive patent health check failed: {str(e)}")
+            results["overall_status"] = "error"
+            results["error"] = str(e)
+        
+        return results
+    
+    def _calculate_patent_health_score(self, agents_status: Dict[str, Any], 
+                                     endpoints_status: Dict[str, Any]) -> float:
+        """计算专利系统整体健康评分."""
+        try:
+            # Agent健康评分 (权重60%)
+            agent_score = agents_status.get("patent_health_percentage", 0) / 100 * 0.6
+            
+            # API端点健康评分 (权重40%)
+            healthy_endpoints = len([
+                s for s in endpoints_status.values() 
+                if s.get('status') == 'healthy'
+            ])
+            total_endpoints = len(endpoints_status)
+            endpoint_score = (healthy_endpoints / total_endpoints if total_endpoints > 0 else 0) * 0.4
+            
+            return round((agent_score + endpoint_score) * 100, 2)
+            
+        except Exception as e:
+            self.logger.error(f"Failed to calculate patent health score: {str(e)}")
+            return 0.0

@@ -11,7 +11,8 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 
 from fastapi import APIRouter, HTTPException, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.templating import Jinja2Templates
 
 from ..models.api import HealthCheckResponse, ErrorResponse
 from ..models.enums import AgentStatus, WorkflowStatus
@@ -21,6 +22,9 @@ from ..config.settings import settings
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["monitoring"])
+
+# 模板引擎
+templates = Jinja2Templates(directory="src/multi_agent_service/templates")
 
 # 服务启动时间
 service_start_time = datetime.now()
@@ -449,3 +453,343 @@ def _get_system_metrics() -> Dict[str, Any]:
             "network_bytes_recv": 0,
             "load_average": [0, 0, 0]
         }
+
+
+# 专利监控专用端点
+@router.get("/patent/metrics")
+async def get_patent_metrics() -> Dict[str, Any]:
+    """
+    获取专利分析系统专用指标.
+    
+    Returns:
+        Dict[str, Any]: 专利系统指标
+    """
+    try:
+        logger.debug("获取专利系统指标")
+        
+        # 获取监控系统实例
+        from ..core.service_manager import service_manager
+        monitoring_system = service_manager.get_service("monitoring_system")
+        
+        if not monitoring_system:
+            raise HTTPException(
+                status_code=503,
+                detail="Monitoring system not available"
+            )
+        
+        # 获取专利指标
+        patent_metrics = await monitoring_system.get_patent_metrics()
+        
+        return patent_metrics
+        
+    except Exception as e:
+        logger.error(f"获取专利系统指标失败: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"获取专利系统指标失败: {str(e)}"
+        )
+
+
+@router.get("/patent/dashboard")
+async def get_patent_dashboard_data() -> Dict[str, Any]:
+    """
+    获取专利监控面板数据.
+    
+    Returns:
+        Dict[str, Any]: 专利监控面板数据
+    """
+    try:
+        logger.debug("获取专利监控面板数据")
+        
+        # 获取服务实例
+        from ..core.service_manager import service_manager
+        monitoring_system = service_manager.get_service("monitoring_system")
+        health_check_manager = service_manager.get_service("health_check_manager")
+        
+        if not monitoring_system or not health_check_manager:
+            raise HTTPException(
+                status_code=503,
+                detail="Required services not available"
+            )
+        
+        # 获取专利指标
+        patent_metrics = await monitoring_system.get_patent_metrics()
+        
+        # 获取专利健康状态
+        patent_health = health_check_manager.get_patent_agents_status()
+        
+        # 检查专利告警
+        patent_alerts = await monitoring_system.check_patent_alerts()
+        
+        # 构建面板数据
+        dashboard_data = {
+            "timestamp": datetime.now().isoformat(),
+            "overview": {
+                "total_patent_agents": patent_health.get("total_patent_agents", 0),
+                "healthy_patent_agents": patent_health.get("healthy_patent_agents", 0),
+                "patent_health_percentage": patent_health.get("patent_health_percentage", 0),
+                "active_alerts": len(patent_alerts)
+            },
+            "performance": {
+                "patent_analysis_count": patent_metrics.get("patent_analysis", {}).get("total_count", 0),
+                "patent_analysis_success_rate": patent_metrics.get("patent_analysis", {}).get("success_rate", 0),
+                "patent_analysis_avg_duration": patent_metrics.get("patent_analysis", {}).get("avg_duration", 0),
+                "patent_cache_hit_rate": patent_metrics.get("patent_data_collection", {}).get("cache_hit_rate", 0),
+                "patent_data_quality_avg": patent_metrics.get("patent_data_collection", {}).get("data_quality_avg", 0)
+            },
+            "activity": {
+                "data_collection_count": patent_metrics.get("patent_data_collection", {}).get("total_count", 0),
+                "search_count": patent_metrics.get("patent_search", {}).get("total_count", 0),
+                "report_generation_count": patent_metrics.get("patent_reports", {}).get("total_count", 0),
+                "api_calls_count": patent_metrics.get("patent_api_calls", {}).get("total_count", 0),
+                "api_success_rate": patent_metrics.get("patent_api_calls", {}).get("success_rate", 0)
+            },
+            "agents_status": patent_health.get("patent_agents", {}),
+            "alerts": patent_alerts,
+            "charts_data": {
+                "agent_health_distribution": _prepare_agent_health_chart_data(patent_health),
+                "performance_trends": _prepare_performance_trends_data(patent_metrics),
+                "activity_breakdown": _prepare_activity_breakdown_data(patent_metrics)
+            }
+        }
+        
+        return dashboard_data
+        
+    except Exception as e:
+        logger.error(f"获取专利监控面板数据失败: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"获取专利监控面板数据失败: {str(e)}"
+        )
+
+
+@router.get("/patent/alerts")
+async def get_patent_alerts() -> Dict[str, Any]:
+    """
+    获取专利系统告警信息.
+    
+    Returns:
+        Dict[str, Any]: 专利系统告警
+    """
+    try:
+        logger.debug("获取专利系统告警")
+        
+        # 获取监控系统实例
+        from ..core.service_manager import service_manager
+        monitoring_system = service_manager.get_service("monitoring_system")
+        
+        if not monitoring_system:
+            raise HTTPException(
+                status_code=503,
+                detail="Monitoring system not available"
+            )
+        
+        # 获取专利告警
+        alerts = await monitoring_system.check_patent_alerts()
+        
+        # 按严重程度分类
+        alerts_by_severity = {
+            "critical": [],
+            "warning": [],
+            "info": []
+        }
+        
+        for alert in alerts:
+            severity = alert.get("severity", "info")
+            if severity in alerts_by_severity:
+                alerts_by_severity[severity].append(alert)
+        
+        return {
+            "timestamp": datetime.now().isoformat(),
+            "total_alerts": len(alerts),
+            "alerts_by_severity": alerts_by_severity,
+            "all_alerts": alerts
+        }
+        
+    except Exception as e:
+        logger.error(f"获取专利系统告警失败: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"获取专利系统告警失败: {str(e)}"
+        )
+
+
+@router.get("/patent/performance-history")
+async def get_patent_performance_history(
+    hours: int = 24,
+    metric: str = "analysis_duration"
+) -> Dict[str, Any]:
+    """
+    获取专利系统性能历史数据.
+    
+    Args:
+        hours: 历史数据时间范围（小时）
+        metric: 指标类型
+        
+    Returns:
+        Dict[str, Any]: 性能历史数据
+    """
+    try:
+        logger.debug(f"获取专利性能历史数据: metric={metric}, hours={hours}")
+        
+        # 获取监控系统实例
+        from ..core.service_manager import service_manager
+        monitoring_system = service_manager.get_service("monitoring_system")
+        
+        if not monitoring_system:
+            raise HTTPException(
+                status_code=503,
+                detail="Monitoring system not available"
+            )
+        
+        # 计算时间范围
+        since = datetime.now() - timedelta(hours=hours)
+        
+        # 获取指标历史数据
+        metric_name = f"patent.{metric}"
+        history_data = monitoring_system.metrics_collector.get_metric_history(
+            metric_name, since=since
+        )
+        
+        # 格式化数据用于图表显示
+        chart_data = []
+        for point in history_data:
+            chart_data.append({
+                "timestamp": point.timestamp.isoformat(),
+                "value": point.value,
+                "tags": point.tags
+            })
+        
+        return {
+            "metric": metric,
+            "time_range_hours": hours,
+            "data_points": len(chart_data),
+            "history": chart_data,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"获取专利性能历史数据失败: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"获取专利性能历史数据失败: {str(e)}"
+        )
+
+
+def _prepare_agent_health_chart_data(patent_health: Dict[str, Any]) -> Dict[str, Any]:
+    """准备Agent健康状态图表数据."""
+    try:
+        total_agents = patent_health.get("total_patent_agents", 0)
+        healthy_agents = patent_health.get("healthy_patent_agents", 0)
+        unhealthy_agents = total_agents - healthy_agents
+        
+        return {
+            "type": "pie",
+            "data": {
+                "labels": ["健康", "不健康"],
+                "datasets": [{
+                    "data": [healthy_agents, unhealthy_agents],
+                    "backgroundColor": ["#28a745", "#dc3545"],
+                    "borderWidth": 1
+                }]
+            }
+        }
+    except Exception as e:
+        logger.warning(f"准备Agent健康图表数据失败: {str(e)}")
+        return {"type": "pie", "data": {"labels": [], "datasets": []}}
+
+
+def _prepare_performance_trends_data(patent_metrics: Dict[str, Any]) -> Dict[str, Any]:
+    """准备性能趋势图表数据."""
+    try:
+        # 模拟趋势数据，实际应该从历史指标中获取
+        hours = list(range(24))
+        analysis_durations = [2.5 + (i % 5) * 0.3 for i in hours]  # 模拟数据
+        success_rates = [95 + (i % 3) * 2 for i in hours]  # 模拟数据
+        
+        return {
+            "type": "line",
+            "data": {
+                "labels": [f"{h}:00" for h in hours],
+                "datasets": [
+                    {
+                        "label": "分析耗时(秒)",
+                        "data": analysis_durations,
+                        "borderColor": "#007bff",
+                        "backgroundColor": "rgba(0, 123, 255, 0.1)",
+                        "yAxisID": "y"
+                    },
+                    {
+                        "label": "成功率(%)",
+                        "data": success_rates,
+                        "borderColor": "#28a745",
+                        "backgroundColor": "rgba(40, 167, 69, 0.1)",
+                        "yAxisID": "y1"
+                    }
+                ]
+            }
+        }
+    except Exception as e:
+        logger.warning(f"准备性能趋势图表数据失败: {str(e)}")
+        return {"type": "line", "data": {"labels": [], "datasets": []}}
+
+
+def _prepare_activity_breakdown_data(patent_metrics: Dict[str, Any]) -> Dict[str, Any]:
+    """准备活动分解图表数据."""
+    try:
+        data_collection = patent_metrics.get("patent_data_collection", {}).get("total_count", 0)
+        search = patent_metrics.get("patent_search", {}).get("total_count", 0)
+        analysis = patent_metrics.get("patent_analysis", {}).get("total_count", 0)
+        reports = patent_metrics.get("patent_reports", {}).get("total_count", 0)
+        
+        return {
+            "type": "bar",
+            "data": {
+                "labels": ["数据收集", "搜索增强", "分析处理", "报告生成"],
+                "datasets": [{
+                    "label": "活动次数",
+                    "data": [data_collection, search, analysis, reports],
+                    "backgroundColor": [
+                        "#007bff",
+                        "#28a745", 
+                        "#ffc107",
+                        "#17a2b8"
+                    ],
+                    "borderWidth": 1
+                }]
+            }
+        }
+    except Exception as e:
+        logger.warning(f"准备活动分解图表数据失败: {str(e)}")
+        return {"type": "bar", "data": {"labels": [], "datasets": []}}
+
+
+# 专利监控面板页面
+@router.get("/patent/dashboard/view", response_class=HTMLResponse)
+async def patent_dashboard_view():
+    """
+    专利监控面板页面.
+    
+    Returns:
+        HTMLResponse: 专利监控面板HTML页面
+    """
+    try:
+        # 读取HTML模板文件
+        import os
+        template_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), 
+            "templates", 
+            "patent_dashboard.html"
+        )
+        
+        with open(template_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        
+        return HTMLResponse(content=html_content)
+        
+    except Exception as e:
+        logger.error(f"加载专利监控面板页面失败: {str(e)}")
+        return HTMLResponse(
+            content=f"<html><body><h1>Error</h1><p>Failed to load dashboard: {str(e)}</p></body></html>",
+            status_code=500
+        )

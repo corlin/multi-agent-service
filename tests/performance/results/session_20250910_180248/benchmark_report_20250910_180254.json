@@ -1,0 +1,121 @@
+{
+  "summary": {
+    "test_start_time": "2025-09-10T18:02:48.838609",
+    "test_end_time": "2025-09-10T18:02:54.001655",
+    "total_duration": 5.163046,
+    "total_tests": 4,
+    "successful_tests": 3,
+    "failed_tests": 1,
+    "success_rate": 0.75
+  },
+  "system_info": {
+    "cpu_count": 8,
+    "memory_total_gb": 47.858863830566406,
+    "python_version": "3.12.7",
+    "platform": "win32"
+  },
+  "test_results": [
+    {
+      "test_name": "single_agent_baseline",
+      "description": "单个专利Agent性能基线测试",
+      "success": true,
+      "duration": 0.006497,
+      "start_time": "2025-09-10T18:02:48.840111",
+      "end_time": "2025-09-10T18:02:48.846608",
+      "metrics": {
+        "total_requests": 30,
+        "successful_requests": 30,
+        "success_rate": 1.0,
+        "avg_response_time": 8.33749771118164e-05,
+        "median_response_time": 0.0,
+        "min_response_time": 0.0,
+        "max_response_time": 0.0005013942718505859,
+        "p95_response_time": 0.0005008101463317872,
+        "p99_response_time": 0.000501255989074707,
+        "avg_memory_usage": 0.0006510416666666666,
+        "max_memory_usage": 0.00390625,
+        "requests_per_second": 59833.15263908702
+      },
+      "error_message": ""
+    },
+    {
+      "test_name": "coordinator_agent_baseline",
+      "description": "专利协调Agent性能基线测试",
+      "success": true,
+      "duration": 0.004999,
+      "start_time": "2025-09-10T18:02:48.847109",
+      "end_time": "2025-09-10T18:02:48.852108",
+      "metrics": {
+        "total_requests": 20,
+        "successful_requests": 20,
+        "success_rate": 1.0,
+        "avg_response_time": 0.0001002192497253418,
+        "median_response_time": 0.0,
+        "min_response_time": 0.0,
+        "max_response_time": 0.0005025863647460938,
+        "p95_response_time": 0.0005016803741455078,
+        "p99_response_time": 0.0005024051666259765,
+        "avg_memory_usage": 0.0021484375,
+        "max_memory_usage": 0.0078125,
+        "requests_per_second": 39794.15559772296
+      },
+      "error_message": ""
+    },
+    {
+      "test_name": "concurrent_analysis_light",
+      "description": "轻量级并发专利分析测试",
+      "success": true,
+      "duration": 0.005002,
+      "start_time": "2025-09-10T18:02:48.852608",
+      "end_time": "2025-09-10T18:02:48.857610",
+      "metrics": {
+        "total_requests": 50,
+        "successful_requests": 50,
+        "success_rate": 1.0,
+        "avg_response_time": 1.9545555114746095e-05,
+        "median_response_time": 0.0,
+        "min_response_time": 0.0,
+        "max_response_time": 0.000499725341796875,
+        "p95_response_time": 0.0,
+        "p99_response_time": 0.0004888606071472168,
+        "avg_memory_usage": 0.00203125,
+        "max_memory_usage": 0.0078125,
+        "requests_per_second": 100054.96183206108
+      },
+      "error_message": ""
+    },
+    {
+      "test_name": "memory_usage_monitoring",
+      "description": "内存使用监控性能测试",
+      "success": false,
+      "duration": 5.143047,
+      "start_time": "2025-09-10T18:02:48.858608",
+      "end_time": "2025-09-10T18:02:54.001655",
+      "metrics": {
+        "initial_memory": 53.18359375,
+        "final_memory": 53.2265625,
+        "memory_increase": 0.04296875,
+        "memory_samples": [
+          53.18359375,
+          53.22265625,
+          53.2265625,
+          53.2265625,
+          53.2265625,
+          53.2265625
+        ],
+        "max_memory": 53.2265625,
+        "avg_memory": 53.21875
+      },
+      "error_message": ""
+    }
+  ],
+  "aggregate_metrics": {
+    "avg_response_time": 6.771326065063476e-05,
+    "median_response_time": 8.33749771118164e-05,
+    "max_response_time": 0.0001002192497253418,
+    "min_response_time": 1.9545555114746095e-05,
+    "avg_success_rate": 1.0,
+    "avg_throughput": 66560.75668962368,
+    "max_throughput": 100054.96183206108
+  }
+}
