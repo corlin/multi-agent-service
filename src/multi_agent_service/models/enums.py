@@ -39,6 +39,7 @@ class WorkflowStatus(str, Enum):
     """工作流状态枚举."""
     PENDING = "pending"  # 等待中
     RUNNING = "running"  # 执行中
+    PAUSED = "paused"  # 已暂停
     COMPLETED = "completed"  # 已完成
     FAILED = "failed"  # 执行失败
     CANCELLED = "cancelled"  # 已取消

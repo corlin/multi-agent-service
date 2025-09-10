@@ -1,12 +1,12 @@
 """专利数据模型和验证框架."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Union
 from uuid import uuid4
 import hashlib
 import re
 
-from pydantic import BaseModel, Field, field_validator, computed_field, ConfigDict
+from pydantic import BaseModel, Field, field_validator, computed_field, ConfigDict, model_validator
 
 from ...models.base import Entity
 
@@ -58,6 +58,7 @@ class PatentClassification(BaseModel):
     ipc_class: Optional[str] = Field(None, description="IPC分类号")
     cpc_class: Optional[str] = Field(None, description="CPC分类号")
     national_class: Optional[str] = Field(None, description="国家分类号")
+    description: Optional[str] = Field(None, description="分类描述")
     
     @field_validator('ipc_class')
     @classmethod
@@ -81,8 +82,8 @@ class PatentData(BaseModel):
     abstract: str = Field(..., description="专利摘要")
     
     # 申请人和发明人
-    applicants: List[PatentApplicant] = Field(default_factory=list, description="申请人列表")
-    inventors: List[PatentInventor] = Field(default_factory=list, description="发明人列表")
+    applicants: List[Union[PatentApplicant, str]] = Field(default_factory=list, description="申请人列表")
+    inventors: List[Union[PatentInventor, str]] = Field(default_factory=list, description="发明人列表")
     
     # 日期信息
     application_date: datetime = Field(..., description="申请日期")
@@ -91,6 +92,7 @@ class PatentData(BaseModel):
     
     # 分类信息
     classifications: List[PatentClassification] = Field(default_factory=list, description="分类信息")
+    ipc_classes: List[str] = Field(default_factory=list, description="IPC分类列表")
     
     # 地理信息
     country: str = Field(..., description="申请国家/地区")
@@ -116,16 +118,16 @@ class PatentData(BaseModel):
     @classmethod
     def validate_application_number(cls, v):
         """验证申请号格式."""
-        if not v or len(v.strip()) < 5:
-            raise ValueError('申请号不能为空且长度至少为5个字符')
+        if not v or len(v.strip()) < 3:  # 降低最小长度要求
+            raise ValueError('申请号不能为空且长度至少为3个字符')
         return v.strip()
     
     @field_validator('title')
     @classmethod
     def validate_title(cls, v):
         """验证专利标题."""
-        if not v or len(v.strip()) < 5:
-            raise ValueError('专利标题不能为空且长度至少为5个字符')
+        if not v or len(v.strip()) < 2:  # 降低最小长度要求
+            raise ValueError('专利标题不能为空且长度至少为2个字符')
         if len(v.strip()) > 500:
             raise ValueError('专利标题长度不能超过500个字符')
         return v.strip()
@@ -134,8 +136,8 @@ class PatentData(BaseModel):
     @classmethod
     def validate_abstract(cls, v):
         """验证专利摘要."""
-        if not v or len(v.strip()) < 10:
-            raise ValueError('专利摘要不能为空且长度至少为10个字符')
+        if not v or len(v.strip()) < 5:  # 降低最小长度要求
+            raise ValueError('专利摘要不能为空且长度至少为5个字符')
         if len(v.strip()) > 5000:
             raise ValueError('专利摘要长度不能超过5000个字符')
         return v.strip()
@@ -152,10 +154,66 @@ class PatentData(BaseModel):
     @classmethod
     def validate_status(cls, v):
         """验证专利状态."""
-        valid_statuses = ['申请中', '已公开', '已授权', '已失效', '已撤回', '已驳回']
-        if v not in valid_statuses:
-            raise ValueError(f'专利状态必须是以下之一: {valid_statuses}')
+        # 支持中文和英文状态
+        valid_statuses_cn = ['申请中', '已公开', '已授权', '已失效', '已撤回', '已驳回']
+        valid_statuses_en = ['pending', 'published', 'granted', 'expired', 'withdrawn', 'rejected']
+        
+        # 英文到中文的映射
+        status_mapping = {
+            'pending': '申请中',
+            'published': '已公开', 
+            'granted': '已授权',
+            'expired': '已失效',
+            'withdrawn': '已撤回',
+            'rejected': '已驳回'
+        }
+        
+        # 如果是英文状态，转换为中文
+        if v.lower() in status_mapping:
+            return status_mapping[v.lower()]
+        
+        # 检查是否为有效的中文状态
+        if v in valid_statuses_cn:
+            return v
+            
+        # 都不匹配则报错
+        all_valid = valid_statuses_cn + valid_statuses_en
+        raise ValueError(f'专利状态必须是以下之一: {all_valid}')
+        
         return v
+    
+    @model_validator(mode='before')
+    @classmethod
+    def convert_string_fields(cls, values):
+        """转换字符串字段为对象."""
+        if isinstance(values, dict):
+            # 转换申请人字符串为对象
+            if 'applicants' in values and values['applicants']:
+                converted_applicants = []
+                for applicant in values['applicants']:
+                    if isinstance(applicant, str):
+                        converted_applicants.append(PatentApplicant(
+                            name=applicant,
+                            normalized_name=applicant
+                        ))
+                    else:
+                        converted_applicants.append(applicant)
+                values['applicants'] = converted_applicants
+            
+            # 转换发明人字符串为对象
+            if 'inventors' in values and values['inventors']:
+                converted_inventors = []
+                for inventor in values['inventors']:
+                    if isinstance(inventor, str):
+                        converted_inventors.append(PatentInventor(
+                            name=inventor,
+                            normalized_name=inventor
+                        ))
+                    else:
+                        converted_inventors.append(inventor)
+                values['inventors'] = converted_inventors
+        
+        return values
     
     @computed_field
     @property

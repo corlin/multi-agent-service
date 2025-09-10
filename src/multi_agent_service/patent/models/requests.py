@@ -21,6 +21,8 @@ class PatentAnalysisRequest(UserRequest):
     max_patents: int = Field(1000, description="最大专利数量")
     include_citations: bool = Field(False, description="是否包含引用信息")
     language: str = Field("zh", description="报告语言")
+    generate_report: bool = Field(True, description="是否生成报告")
+    report_format: str = Field("html", description="报告格式")
     
     
 class PatentDataCollectionRequest(BaseModel):

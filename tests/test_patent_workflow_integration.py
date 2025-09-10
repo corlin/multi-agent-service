@@ -31,8 +31,7 @@ from src.multi_agent_service.core.service_manager import ServiceManager
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
 
-# Test
- fixtures
+# Test fixtures
 @pytest.fixture
 def sample_patent_request():
     """Create a sample patent analysis request."""
@@ -188,8 +187,12 @@ class TestPatentWorkflowIntegration:
         }
         
         # 模拟Agent协作执行
-        with patch.object(patent_workflow_engine, '_execute_layer_nodes', 
-                         return_value=mock_agents_results) as mock_execute:
+        mock_result_execution = execution.model_copy()
+        mock_result_execution.status = WorkflowStatus.COMPLETED
+        mock_result_execution.output_data = {"collaboration_results": mock_agents_results}
+        
+        with patch.object(patent_workflow_engine.parallel_engine, 'execute_workflow', 
+                         return_value=mock_result_execution) as mock_execute:
             
             # 模拟工作流图
             mock_graph = MagicMock()
@@ -207,7 +210,8 @@ class TestPatentWorkflowIntegration:
                 
                 # 验证多Agent协作
                 assert result is not None
-                mock_execute.assert_called()
+                assert result.status == WorkflowStatus.COMPLETED
+                mock_execute.assert_called_once_with(execution)
                 
                 # 验证所有Agent都被执行
                 for agent_id in mock_agents_results.keys():

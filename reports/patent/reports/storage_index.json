@@ -76,10 +76,87 @@
         },
         "status": "creating"
       }
+    },
+    "patent_report_20250911_001755_v1.html": {
+      "filename": "patent_report_20250911_001755_v1.html",
+      "format": "html",
+      "path": "reports\\patent\\reports\\patent_report_20250911_001755_v1.html",
+      "size_bytes": 12984,
+      "created_at": "2025-09-11T00:17:55.346572",
+      "version_info": {
+        "version_id": "report_20250911_42f04ce9_v1",
+        "report_id": "report_20250911_42f04ce9",
+        "version_number": 1,
+        "created_at": "2025-09-11T00:17:55.344572",
+        "parameters": {
+          "format": "html",
+          "template": "detailed",
+          "include_charts": true,
+          "include_raw_data": false,
+          "language": "zh",
+          "sections": [
+            "summary",
+            "trend",
+            "competition",
+            "technology",
+            "geographic"
+          ],
+          "chart_types": [
+            "line",
+            "pie",
+            "bar"
+          ],
+          "keywords": [
+            "人工智能",
+            "机器学习",
+            "深度学习"
+          ]
+        },
+        "status": "completed",
+        "updated_at": "2025-09-11T00:17:55.347072"
+      }
+    },
+    "patent_report_20250911_001755_v2.json": {
+      "filename": "patent_report_20250911_001755_v2.json",
+      "format": "json",
+      "path": "reports\\patent\\reports\\patent_report_20250911_001755_v2.json",
+      "size_bytes": 14559,
+      "created_at": "2025-09-11T00:17:55.351572",
+      "version_info": {
+        "version_id": "report_20250911_42f04ce9_v2",
+        "report_id": "report_20250911_42f04ce9",
+        "version_number": 2,
+        "created_at": "2025-09-11T00:17:55.350071",
+        "parameters": {
+          "format": "html",
+          "template": "detailed",
+          "include_charts": true,
+          "include_raw_data": false,
+          "language": "zh",
+          "sections": [
+            "summary",
+            "trend",
+            "competition",
+            "technology",
+            "geographic"
+          ],
+          "chart_types": [
+            "line",
+            "pie",
+            "bar"
+          ],
+          "keywords": [
+            "人工智能",
+            "机器学习",
+            "深度学习"
+          ]
+        },
+        "status": "creating"
+      }
     }
   },
   "stats": {
-    "total_files": 2,
-    "total_size": 27543
+    "total_files": 4,
+    "total_size": 55086
   }
 }

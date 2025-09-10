@@ -40,6 +40,86 @@ class PatentAnalysisAgent(PatentBaseAgent):
         
         self.logger = logging.getLogger(f"{__name__}.PatentAnalysisAgent")
     
+    async def can_handle_request(self, request) -> float:
+        """判断是否能处理请求."""
+        # 调用父类的实现
+        base_confidence = await super().can_handle_request(request)
+        
+        # 检查分析相关关键词
+        content = getattr(request, 'content', str(request)).lower()
+        analysis_keywords = ["分析", "趋势", "竞争", "技术", "统计", "报告"]
+        keyword_matches = sum(1 for keyword in analysis_keywords if keyword in content)
+        
+        # 提高分析相关请求的置信度
+        analysis_boost = min(keyword_matches * 0.2, 0.3)
+        
+        return min(base_confidence + analysis_boost, 1.0)
+    
+    async def get_capabilities(self) -> List[str]:
+        """获取Agent能力列表."""
+        base_capabilities = await super().get_capabilities()
+        specific_capabilities = await self._get_specific_capabilities()
+        return base_capabilities + specific_capabilities
+    
+    async def estimate_processing_time(self, request) -> int:
+        """估算处理时间."""
+        # 分析任务通常需要更长时间
+        base_time = await super().estimate_processing_time(request)
+        return base_time + 30  # 分析额外需要30秒
+    
+    async def _process_request_specific(self, request) -> 'AgentResponse':
+        """处理具体的分析请求."""
+        from ...models.base import AgentResponse
+        
+        try:
+            # 如果是PatentAnalysisRequest对象，直接处理
+            if hasattr(request, 'analysis_types'):
+                result = await self._process_patent_request(request)
+            else:
+                # 如果是普通请求，转换为分析请求
+                from ..models.requests import PatentAnalysisRequest, AnalysisType
+                from uuid import uuid4
+                
+                # 从请求内容提取关键词
+                content = getattr(request, 'content', str(request))
+                keywords = content.split()[:5]  # 简单提取前5个词作为关键词
+                
+                analysis_request = PatentAnalysisRequest(
+                    request_id=str(uuid4()),
+                    keywords=keywords,
+                    analysis_types=[AnalysisType.COMPREHENSIVE],
+                    date_range={"start": "2020-01-01", "end": "2024-12-31"},
+                    countries=["US", "CN", "EP"],
+                    max_patents=1000
+                )
+                
+                result = await self._process_patent_request(analysis_request)
+            
+            # 生成响应内容
+            response_content = await self._generate_response_content(result)
+            
+            return AgentResponse(
+                agent_id=self.agent_id,
+                agent_type=self.agent_type,
+                response_content=response_content,
+                confidence=0.8,
+                metadata=result
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Error processing analysis request: {str(e)}")
+            return AgentResponse(
+                agent_id=self.agent_id,
+                agent_type=self.agent_type,
+                response_content=f"分析处理失败: {str(e)}",
+                confidence=0.0,
+                metadata={"error": str(e)}
+            )
+    
+    async def _process_patent_request_specific(self, request: PatentAnalysisRequest) -> Dict[str, Any]:
+        """处理专利特定请求."""
+        return await self._process_patent_request(request)
+    
     async def _get_specific_capabilities(self) -> List[str]:
         """获取分析智能体的特定能力."""
         return [
@@ -287,7 +367,9 @@ class PatentAnalysisAgent(PatentBaseAgent):
         applicant_counts = defaultdict(int)
         for patent in patent_dataset.patents:
             for applicant in patent.applicants or []:
-                applicant_counts[applicant] += 1
+                # 如果是字符串，直接使用；如果是对象，使用name属性
+                applicant_name = applicant if isinstance(applicant, str) else getattr(applicant, 'name', str(applicant))
+                applicant_counts[applicant_name] += 1
         
         # 排序获取顶级申请人
         top_applicants = sorted(applicant_counts.items(), key=lambda x: x[1], reverse=True)[:10]

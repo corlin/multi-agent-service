@@ -805,8 +805,10 @@ async def health_check() -> Dict[str, Any]:
         try:
             import weasyprint
             dependencies["weasyprint"] = {"available": True, "version": weasyprint.__version__}
-        except ImportError:
-            dependencies["weasyprint"] = {"available": False, "error": "Not installed"}
+        except ImportError as e:
+            dependencies["weasyprint"] = {"available": False, "error": f"Import error: {str(e)}"}
+        except Exception as e:
+            dependencies["weasyprint"] = {"available": False, "error": f"Library error: {str(e)}"}
         
         return {
             "success": True,

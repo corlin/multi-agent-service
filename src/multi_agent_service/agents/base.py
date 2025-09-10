@@ -289,7 +289,8 @@ class BaseAgent(AgentLifecycleInterface, AgentCollaborationInterface, AgentProce
             self._status = AgentStatus.BUSY
             self._last_active = datetime.now()
             
-            self.logger.info(f"Processing request {request.request_id} with task {task_id}")
+            request_id = getattr(request, 'request_id', request.get('request_id', 'unknown')) if hasattr(request, 'get') or hasattr(request, 'request_id') else 'unknown'
+            self.logger.info(f"Processing request {request_id} with task {task_id}")
             
             # 检查是否能处理此请求
             confidence = await self.can_handle_request(request)
@@ -315,11 +316,12 @@ class BaseAgent(AgentLifecycleInterface, AgentCollaborationInterface, AgentProce
             processing_time = (datetime.now() - start_time).total_seconds()
             self._update_average_response_time(processing_time)
             
-            self.logger.info(f"Successfully processed request {request.request_id} in {processing_time:.2f}s")
+            self.logger.info(f"Successfully processed request {request_id} in {processing_time:.2f}s")
             return response
             
         except Exception as e:
-            self.logger.error(f"Error processing request {request.request_id}: {str(e)}")
+            request_id = getattr(request, 'request_id', request.get('request_id', 'unknown')) if hasattr(request, 'get') or hasattr(request, 'request_id') else 'unknown'
+            self.logger.error(f"Error processing request {request_id}: {str(e)}")
             self._failed_requests += 1
             
             # 返回错误响应

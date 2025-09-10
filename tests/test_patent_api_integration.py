@@ -172,9 +172,17 @@ class TestPatentAPIEndpoints:
         """测试成功下载报告."""
         with patch('src.multi_agent_service.api.patent.get_report_exporter') as mock_exporter:
             mock_exporter_instance = MagicMock()
+            import tempfile
+            import os
+            
+            # 创建临时文件
+            temp_file = tempfile.NamedTemporaryFile(suffix='.pdf', delete=False)
+            temp_file.write(b"test pdf content")
+            temp_file.close()
+            
             mock_exporter_instance.get_download_info = AsyncMock(return_value={
                 "exists": True,
-                "path": "/tmp/test_report.pdf",
+                "path": temp_file.name,
                 "mime_type": "application/pdf",
                 "download_name": "patent_analysis_report.pdf",
                 "format": "pdf"
@@ -221,9 +229,17 @@ class TestPatentAPIEndpoints:
         """测试查看不支持格式的报告."""
         with patch('src.multi_agent_service.api.patent.get_report_exporter') as mock_exporter:
             mock_exporter_instance = MagicMock()
+            import tempfile
+            import os
+            
+            # 创建临时文件
+            temp_file = tempfile.NamedTemporaryFile(suffix='.pdf', delete=False)
+            temp_file.write(b"test pdf content")
+            temp_file.close()
+            
             mock_exporter_instance.get_download_info = AsyncMock(return_value={
                 "exists": True,
-                "path": "/tmp/test_report.pdf",
+                "path": temp_file.name,
                 "mime_type": "application/pdf",
                 "download_name": "report.pdf",
                 "format": "pdf"

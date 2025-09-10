@@ -50,6 +50,116 @@ class PatentDataCollectionAgent(PatentBaseAgent):
         # 数据源管理器
         self.data_source_manager = DataSourceManager()
         
+        # 注册数据源
+        for name, config in self.data_sources_config.items():
+            if name == 'google_patents':
+                api_client = GooglePatentsAPI(config)
+            elif name == 'patent_public_api':
+                api_client = PatentPublicAPI(config)
+            else:
+                continue
+            self.data_source_manager.register_data_source(name, api_client)
+        
+        self.logger = logging.getLogger(f"{__name__}.PatentDataCollectionAgent")
+    
+    async def can_handle_request(self, request) -> float:
+        """判断是否能处理请求."""
+        # 调用父类的实现
+        base_confidence = await super().can_handle_request(request)
+        
+        # 检查数据收集相关关键词
+        content = getattr(request, 'content', str(request)).lower()
+        collection_keywords = ["收集", "数据", "搜索", "获取", "检索"]
+        keyword_matches = sum(1 for keyword in collection_keywords if keyword in content)
+        
+        # 提高数据收集相关请求的置信度
+        collection_boost = min(keyword_matches * 0.2, 0.3)
+        
+        return min(base_confidence + collection_boost, 1.0)
+    
+    async def get_capabilities(self) -> List[str]:
+        """获取Agent能力列表."""
+        base_capabilities = await super().get_capabilities()
+        specific_capabilities = [
+            "专利数据收集",
+            "多数据源整合",
+            "数据质量验证",
+            "数据去重处理",
+            "缓存管理"
+        ]
+        return base_capabilities + specific_capabilities
+    
+    async def estimate_processing_time(self, request) -> int:
+        """估算处理时间."""
+        # 数据收集任务通常需要中等时间
+        base_time = await super().estimate_processing_time(request)
+        return base_time + 20  # 数据收集额外需要20秒
+    
+    async def _process_request_specific(self, request) -> 'AgentResponse':
+        """处理具体的数据收集请求."""
+        from ...models.base import AgentResponse
+        
+        try:
+            # 如果是PatentDataCollectionRequest对象，直接处理
+            if hasattr(request, 'keywords'):
+                result = await self._process_patent_request_specific(request)
+            else:
+                # 如果是普通请求，转换为数据收集请求
+                from ..models.requests import PatentDataCollectionRequest
+                
+                # 从请求内容提取关键词
+                content = getattr(request, 'content', str(request))
+                keywords = content.split()[:5]  # 简单提取前5个词作为关键词
+                
+                collection_request = PatentDataCollectionRequest(
+                    request_id=str(uuid4()),
+                    keywords=keywords,
+                    max_results=100,
+                    data_sources=["google_patents", "patent_public_api"],
+                    date_range={"start": "2020-01-01", "end": "2024-12-31"},
+                    countries=["US", "CN", "EP"]
+                )
+                
+                result = await self._process_patent_request_specific(collection_request)
+            
+            # 生成响应内容
+            response_content = f"专利数据收集完成。状态: {result.get('status', 'unknown')}"
+            
+            return AgentResponse(
+                agent_id=self.agent_id,
+                agent_type=self.agent_type,
+                response_content=response_content,
+                confidence=0.8,
+                metadata=result
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Error processing data collection request: {str(e)}")
+            return AgentResponse(
+                agent_id=self.agent_id,
+                agent_type=self.agent_type,
+                response_content=f"数据收集处理失败: {str(e)}",
+                confidence=0.0,
+                metadata={"error": str(e)}
+            )
+    
+    async def _process_patent_request_specific(self, request) -> Dict[str, Any]:
+        """处理专利特定请求."""
+        try:
+            # 模拟数据收集处理
+            return {
+                "status": "success",
+                "collected_patents": 100,
+                "data_sources": ["google_patents", "patent_public_api"],
+                "processing_time": 30.0
+            }
+        except Exception as e:
+            return {
+                "status": "failed",
+                "error": str(e)
+            }
+        self.data_source_manager = DataSourceManager()
+        
         # 数据处理配置
         self.processing_config = {
             'enable_deduplication': True,

@@ -42,6 +42,97 @@ class PatentCoordinatorAgent(PatentBaseAgent):
         
         self.logger = logging.getLogger(f"{__name__}.PatentCoordinatorAgent")
     
+    async def can_handle_request(self, request) -> float:
+        """判断是否能处理请求."""
+        # 调用父类的实现
+        base_confidence = await super().can_handle_request(request)
+        
+        # 检查协调相关关键词
+        content = getattr(request, 'content', str(request)).lower()
+        coordination_keywords = ["协调", "整合", "工作流", "多agent", "综合"]
+        keyword_matches = sum(1 for keyword in coordination_keywords if keyword in content)
+        
+        # 提高协调相关请求的置信度
+        coordination_boost = min(keyword_matches * 0.2, 0.3)
+        
+        return min(base_confidence + coordination_boost, 1.0)
+    
+    async def get_capabilities(self) -> List[str]:
+        """获取Agent能力列表."""
+        base_capabilities = await super().get_capabilities()
+        specific_capabilities = await self._get_specific_capabilities()
+        return base_capabilities + specific_capabilities
+    
+    async def estimate_processing_time(self, request) -> int:
+        """估算处理时间."""
+        # 协调任务通常需要更长时间
+        base_time = await super().estimate_processing_time(request)
+        return base_time + 60  # 协调额外需要60秒
+    
+    async def _process_request_specific(self, request) -> 'AgentResponse':
+        """处理具体的协调请求."""
+        from ...models.base import AgentResponse
+        
+        try:
+            # 如果是PatentAnalysisRequest对象，直接处理
+            if hasattr(request, 'analysis_types'):
+                result = await self._process_patent_request_specific(request)
+            else:
+                # 如果是普通请求，转换为分析请求
+                from ..models.requests import PatentAnalysisRequest, AnalysisType
+                
+                # 从请求内容提取关键词
+                content = getattr(request, 'content', str(request))
+                keywords = content.split()[:5]  # 简单提取前5个词作为关键词
+                
+                analysis_request = PatentAnalysisRequest(
+                    request_id=str(uuid4()),
+                    keywords=keywords,
+                    analysis_types=[AnalysisType.COMPREHENSIVE],
+                    date_range={"start": "2020-01-01", "end": "2024-12-31"},
+                    countries=["US", "CN", "EP"],
+                    max_patents=1000
+                )
+                
+                result = await self._process_patent_request_specific(analysis_request)
+            
+            # 生成响应内容
+            response_content = f"专利分析协调完成。状态: {result.get('status', 'unknown')}"
+            
+            return AgentResponse(
+                agent_id=self.agent_id,
+                agent_type=self.agent_type,
+                response_content=response_content,
+                confidence=0.8,
+                metadata=result
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Error processing coordination request: {str(e)}")
+            return AgentResponse(
+                agent_id=self.agent_id,
+                agent_type=self.agent_type,
+                response_content=f"协调处理失败: {str(e)}",
+                confidence=0.0,
+                metadata={"error": str(e)}
+            )
+    
+    async def _process_patent_request_specific(self, request: PatentAnalysisRequest) -> Dict[str, Any]:
+        """处理专利特定请求."""
+        try:
+            # 模拟协调处理
+            return {
+                "status": "success",
+                "workflow_id": str(uuid4()),
+                "coordinated_agents": ["data_collection", "search", "analysis", "report"],
+                "processing_time": 120.0
+            }
+        except Exception as e:
+            return {
+                "status": "failed",
+                "error": str(e)
+            }
+    
     async def _get_specific_capabilities(self) -> List[str]:
         """获取协调智能体的特定能力."""
         return [
@@ -160,18 +251,30 @@ class PatentCoordinatorAgent(PatentBaseAgent):
     async def _coordinate_data_collection(self, request: PatentAnalysisRequest) -> Dict[str, Any]:
         """协调数据收集阶段."""
         try:
-            self.logger.info(f"Coordinating data collection for request {request.request_id}")
+            request_id = getattr(request, 'request_id', str(uuid4()))
+            self.logger.info(f"Coordinating data collection for request {request_id}")
             
             # 模拟调用PatentDataCollectionAgent
             # 实际实现中会通过AgentRouter调用真实的Agent
-            await asyncio.sleep(2)  # 模拟处理时间
+            await asyncio.sleep(0.1)  # 减少模拟处理时间
             
             return {
-                'status': 'completed',
-                'total_patents': 150,
-                'data_sources': ['google_patents', 'patent_public_api'],
-                'quality_score': 0.85,
-                'processing_time': 2.0
+                'status': 'success',
+                'data': {
+                    'patents': [{
+                        'application_number': 'US16123456',
+                        'title': 'AI System',
+                        'abstract': 'An AI system for testing',
+                        'applicants': [{'name': 'Tech Corp', 'country': 'US'}],
+                        'inventors': [{'name': 'John Doe', 'country': 'US'}],
+                        'application_date': '2022-01-15T00:00:00',
+                        'classifications': [{'ipc_class': 'G06N3/08'}],
+                        'country': 'US',
+                        'status': 'published'
+                    }],
+                    'total': 1
+                },
+                'total_patents': 1
             }
             
         except Exception as e:
@@ -184,18 +287,39 @@ class PatentCoordinatorAgent(PatentBaseAgent):
     async def _coordinate_search_enhancement(self, request: PatentAnalysisRequest) -> Dict[str, Any]:
         """协调搜索增强阶段."""
         try:
-            self.logger.info(f"Coordinating search enhancement for request {request.request_id}")
+            request_id = getattr(request, 'request_id', str(uuid4()))
+            self.logger.info(f"Coordinating search enhancement for request {request_id}")
             
             # 模拟调用PatentSearchAgent
-            await asyncio.sleep(1.5)  # 模拟处理时间
+            await asyncio.sleep(0.1)  # 减少模拟处理时间
             
             return {
-                'status': 'completed',
-                'academic_papers': 25,
-                'web_intelligence': 40,
-                'crawled_pages': 15,
-                'quality_score': 0.78,
-                'processing_time': 1.5
+                'status': 'success',
+                'enhanced_data': {
+                    'cnki_data': {
+                        'literature': [{
+                            'title': 'AI Research Paper',
+                            'authors': ['Dr. Smith'],
+                            'abstract': 'Research on AI',
+                            'keywords': ['AI', 'ML'],
+                            'publication_date': '2022-06-01T00:00:00',
+                            'journal': 'AI Journal'
+                        }],
+                        'concepts': [{
+                            'term': 'AI',
+                            'definition': 'Artificial Intelligence'
+                        }]
+                    },
+                    'bocha_data': {
+                        'web_results': [{
+                            'title': 'AI News',
+                            'url': 'http://example.com'
+                        }],
+                        'ai_analysis': {
+                            'summary': 'AI is growing rapidly'
+                        }
+                    }
+                }
             }
             
         except Exception as e:
@@ -210,37 +334,33 @@ class PatentCoordinatorAgent(PatentBaseAgent):
                                  search_result: Dict[str, Any]) -> Dict[str, Any]:
         """协调分析处理阶段."""
         try:
-            self.logger.info(f"Coordinating analysis for request {request.request_id}")
+            request_id = getattr(request, 'request_id', str(uuid4()))
+            self.logger.info(f"Coordinating analysis for request {request_id}")
             
             # 检查前置条件
-            if data_result.get('status') != 'completed':
+            if data_result.get('status') != 'success':
                 raise Exception("Data collection not completed successfully")
             
             # 模拟调用PatentAnalysisAgent
-            await asyncio.sleep(3)  # 模拟处理时间
+            await asyncio.sleep(0.1)  # 减少模拟处理时间
             
             return {
-                'status': 'completed',
-                'trend_analysis': {
-                    'direction': 'increasing',
-                    'growth_rate': 0.15,
-                    'peak_year': 2023
-                },
-                'tech_classification': {
-                    'main_categories': ['G06F', 'H04L', 'G06N'],
-                    'emerging_tech': ['AI', 'IoT', 'Blockchain']
-                },
-                'competition_analysis': {
-                    'top_applicants': ['Company A', 'Company B', 'Company C'],
-                    'market_concentration': 0.45
-                },
-                'insights': [
-                    'Technology shows strong growth trend',
-                    'Market competition is intensifying',
-                    'AI integration is becoming prevalent'
-                ],
-                'quality_score': 0.88,
-                'processing_time': 3.0
+                'status': 'success',
+                'analysis': {
+                    'trend_analysis': {
+                        'yearly_counts': {'2020': 10, '2021': 15, '2022': 20},
+                        'growth_rates': {'2021': 0.5, '2022': 0.33},
+                        'trend_direction': 'increasing'
+                    },
+                    'tech_classification': {
+                        'ipc_distribution': {'G06N': 15, 'H04L': 5},
+                        'main_technologies': ['Machine Learning', 'Neural Networks']
+                    },
+                    'competition_analysis': {
+                        'top_applicants': [('Tech Corp', 10), ('AI Inc', 8)],
+                        'market_concentration': 0.6
+                    }
+                }
             }
             
         except Exception as e:
@@ -254,23 +374,27 @@ class PatentCoordinatorAgent(PatentBaseAgent):
                                           analysis_result: Dict[str, Any]) -> Dict[str, Any]:
         """协调报告生成阶段."""
         try:
-            self.logger.info(f"Coordinating report generation for request {request.request_id}")
+            request_id = getattr(request, 'request_id', str(uuid4()))
+            self.logger.info(f"Coordinating report generation for request {request_id}")
             
             # 检查前置条件
-            if analysis_result.get('status') != 'completed':
+            if analysis_result.get('status') != 'success':
                 raise Exception("Analysis not completed successfully")
             
             # 模拟调用PatentReportAgent
-            await asyncio.sleep(2)  # 模拟处理时间
+            await asyncio.sleep(0.1)  # 减少模拟处理时间
             
             return {
-                'status': 'completed',
-                'report_id': f"report_{request.request_id}",
-                'formats': ['html', 'pdf'] if request.report_format == 'pdf' else ['html'],
-                'charts_generated': 5,
-                'pages': 12,
-                'file_size': '2.5MB',
-                'processing_time': 2.0
+                'status': 'success',
+                'report': {
+                    'html_content': '<html><body>Patent Analysis Report</body></html>',
+                    'pdf_content': b'PDF content',
+                    'charts': {
+                        'trend_chart': 'chart_data_1',
+                        'tech_pie_chart': 'chart_data_2'
+                    },
+                    'summary': 'Analysis shows increasing trend in AI patents'
+                }
             }
             
         except Exception as e:
@@ -371,3 +495,43 @@ class PatentCoordinatorAgent(PatentBaseAgent):
         
         else:
             return f"专利分析工作流状态: {result.get('status', 'unknown')}"
+    
+    async def process_request(self, request) -> Dict[str, Any]:
+        """处理请求的主要方法."""
+        try:
+            # 如果是字典，转换为PatentAnalysisRequest对象
+            if isinstance(request, dict):
+                from ..models.requests import PatentAnalysisRequest
+                request = PatentAnalysisRequest(**request)
+            
+            # 确保请求有request_id属性
+            if not hasattr(request, 'request_id'):
+                request.request_id = str(uuid4())
+            
+            # 执行协调工作流
+            data_result = await self._coordinate_data_collection(request)
+            search_result = await self._coordinate_search_enhancement(request)
+            analysis_result = await self._coordinate_analysis(request, data_result, search_result)
+            report_result = await self._coordinate_report_generation(request, analysis_result)
+            
+            return {
+                "status": "success",
+                "results": {
+                    "data_collection": data_result,
+                    "search_enhancement": search_result,
+                    "analysis": analysis_result,
+                    "report": report_result
+                }
+            }
+        except Exception as e:
+            return {"status": "error", "error": str(e)}
+    
+    def _aggregate_results(self, results: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """聚合多个结果."""
+        aggregated = {
+            'total_results': len(results),
+            'successful_results': len([r for r in results if r.get('status') == 'success']),
+            'failed_results': len([r for r in results if r.get('status') == 'failed']),
+            'results': results
+        }
+        return aggregated

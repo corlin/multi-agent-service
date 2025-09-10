@@ -262,11 +262,13 @@ class PatentDeduplicator:
             # 构建哈希索引
             content_hashes = {}
             similarity_groups = defaultdict(list)
+            removed_count = 0
             
             for i, patent in enumerate(dataset.patents):
                 # 精确匹配去重
                 if patent.content_hash in content_hashes:
                     logger.debug(f"Found exact duplicate: {patent.application_number}")
+                    removed_count += 1
                     continue
                 
                 content_hashes[patent.content_hash] = i
@@ -274,7 +276,6 @@ class PatentDeduplicator:
             
             # 处理相似性去重
             unique_indices = set(content_hashes.values())
-            removed_count = 0
             
             for similar_indices in similarity_groups.values():
                 if len(similar_indices) > 1:

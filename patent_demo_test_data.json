@@ -1,0 +1,164 @@
+{
+  "sample_patents": [
+    {
+      "application_number": "CN202310001234.5",
+      "title": "基于深度学习的图像识别方法及系统",
+      "abstract": "本发明公开了一种基于深度学习的图像识别方法，通过卷积神经网络实现高精度图像分类...",
+      "applicants": [
+        "华为技术有限公司"
+      ],
+      "inventors": [
+        "张三",
+        "李四"
+      ],
+      "application_date": "2023-01-15",
+      "publication_date": "2023-07-15",
+      "ipc_classes": [
+        "G06N3/04",
+        "G06F18/24"
+      ],
+      "country": "CN",
+      "status": "已授权",
+      "keywords": [
+        "深度学习",
+        "图像识别",
+        "卷积神经网络"
+      ]
+    },
+    {
+      "application_number": "US17/123456",
+      "title": "Blockchain-based Smart Contract System",
+      "abstract": "A blockchain-based smart contract system that enables secure and automated execution of contracts...",
+      "applicants": [
+        "IBM Corporation"
+      ],
+      "inventors": [
+        "John Smith",
+        "Jane Doe"
+      ],
+      "application_date": "2023-02-20",
+      "publication_date": "2023-08-20",
+      "ipc_classes": [
+        "G06Q20/38",
+        "H04L9/32"
+      ],
+      "country": "US",
+      "status": "审查中",
+      "keywords": [
+        "区块链",
+        "智能合约",
+        "分布式账本"
+      ]
+    },
+    {
+      "application_number": "JP2023-567890",
+      "title": "5G通信システムにおける信号処理方法",
+      "abstract": "5G通信システムにおいて、高速かつ低遅延の信号処理を実現する方法を提供する...",
+      "applicants": [
+        "ソニー株式会社"
+      ],
+      "inventors": [
+        "田中太郎",
+        "佐藤花子"
+      ],
+      "application_date": "2023-03-10",
+      "publication_date": "2023-09-10",
+      "ipc_classes": [
+        "H04W72/04",
+        "H04L27/26"
+      ],
+      "country": "JP",
+      "status": "已公开",
+      "keywords": [
+        "5G",
+        "通信技术",
+        "信号处理"
+      ]
+    }
+  ],
+  "expected_responses": {
+    "quick_search": {
+      "min_confidence": 0.7,
+      "expected_keywords": [
+        "检索",
+        "搜索",
+        "专利"
+      ],
+      "expected_sections": [
+        "搜索结果",
+        "数据统计"
+      ],
+      "max_execution_time": 60
+    },
+    "comprehensive_analysis": {
+      "min_confidence": 0.8,
+      "expected_keywords": [
+        "分析",
+        "趋势",
+        "技术",
+        "竞争"
+      ],
+      "expected_sections": [
+        "数据收集",
+        "搜索增强",
+        "深度分析",
+        "报告生成"
+      ],
+      "max_execution_time": 300
+    },
+    "trend_analysis": {
+      "min_confidence": 0.75,
+      "expected_keywords": [
+        "趋势",
+        "发展",
+        "年度",
+        "增长"
+      ],
+      "expected_sections": [
+        "趋势分析",
+        "技术发展"
+      ],
+      "max_execution_time": 180
+    },
+    "competitive_analysis": {
+      "min_confidence": 0.75,
+      "expected_keywords": [
+        "竞争",
+        "申请人",
+        "市场",
+        "份额"
+      ],
+      "expected_sections": [
+        "竞争分析",
+        "申请人分布"
+      ],
+      "max_execution_time": 200
+    }
+  },
+  "validation_rules": {
+    "response_structure": {
+      "required_fields": [
+        "agent_id",
+        "content",
+        "confidence"
+      ],
+      "optional_fields": [
+        "metadata",
+        "next_actions"
+      ]
+    },
+    "content_quality": {
+      "min_length": 50,
+      "max_length": 10000,
+      "required_patterns": [
+        "专利",
+        "分析|检索|搜索"
+      ]
+    },
+    "execution_metrics": {
+      "max_total_time": 600,
+      "min_success_rate": 0.8
+    }
+  },
+  "generated_at": "2025-09-11T00:19:54.761582"
+}
