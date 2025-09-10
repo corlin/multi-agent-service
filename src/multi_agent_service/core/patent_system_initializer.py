@@ -79,11 +79,11 @@ class PatentSystemInitializer:
             # 创建专利Agent注册器
             self.patent_agent_registry = PatentAgentRegistry(self.agent_registry)
             
-            # 注册所有专利Agent
+            # 注册所有专利Agent类
             success = self.patent_agent_registry.register_all_patent_agents()
             
             if success:
-                self.logger.info("Patent agents initialized successfully")
+                self.logger.info("Patent agent classes registered successfully")
                 
                 # 验证注册状态
                 validation = self.patent_agent_registry.validate_patent_agent_registration()
@@ -91,6 +91,9 @@ class PatentSystemInitializer:
                     self.logger.warning(f"Patent agent validation warnings: {validation['warnings']}")
                     for error in validation["errors"]:
                         self.initialization_errors.append(f"Agent validation: {error}")
+                
+                # 尝试创建默认的专利Agent实例（如果配置存在）
+                await self._create_default_patent_agent_instances()
                 
                 return validation["is_valid"]
             else:
@@ -101,6 +104,196 @@ class PatentSystemInitializer:
             self.logger.error(f"Patent agent initialization failed: {str(e)}")
             self.initialization_errors.append(f"Agent initialization: {str(e)}")
             return False
+    
+    async def _create_default_patent_agent_instances(self) -> None:
+        """创建默认的专利Agent实例."""
+        try:
+            from ..models.config import AgentConfig
+            from ..services.model_client import BaseModelClient
+            
+            # 获取默认的模型客户端
+            try:
+                from ..services.model_router import ModelRouter
+                from ..config.config_manager import ConfigManager
+                
+                config_manager = ConfigManager()
+                
+                # 检查是否有模型配置
+                try:
+                    model_configs = config_manager.get_config("models")
+                    if not model_configs:
+                        self.logger.warning("No model configurations available, skipping agent instance creation")
+                        return
+                except Exception as e:
+                    self.logger.warning(f"Could not get model configs: {str(e)}")
+                    # 继续使用模拟客户端
+                
+                # 创建模型路由器
+                model_router = ModelRouter(config_manager)
+                
+                # 尝试获取默认客户端
+                default_client = None
+                try:
+                    default_client = model_router.get_default_client()
+                except Exception as e:
+                    self.logger.warning(f"Could not get default client from router: {str(e)}")
+                
+                # 如果没有默认客户端，尝试创建一个简单的模拟客户端
+                if not default_client:
+                    self.logger.info("Creating mock model client for patent agent instances")
+                    default_client = self._create_mock_model_client()
+                    
+            except Exception as e:
+                self.logger.warning(f"Could not initialize model router: {str(e)}")
+                # 创建模拟客户端作为后备
+                default_client = self._create_mock_model_client()
+            
+            # 定义默认的专利Agent配置
+            default_patent_agents = [
+                {
+                    "agent_id": "patent_coordinator_default",
+                    "agent_type": "patent_coordinator",
+                    "name": "Patent Coordinator Agent",
+                    "description": "Default patent analysis coordinator agent",
+                    "enabled": True
+                },
+                {
+                    "agent_id": "patent_data_collection_default", 
+                    "agent_type": "patent_data_collection",
+                    "name": "Patent Data Collection Agent",
+                    "description": "Default patent data collection agent",
+                    "enabled": True
+                },
+                {
+                    "agent_id": "patent_search_default",
+                    "agent_type": "patent_search", 
+                    "name": "Patent Search Agent",
+                    "description": "Default patent search enhancement agent",
+                    "enabled": True
+                },
+                {
+                    "agent_id": "patent_analysis_default",
+                    "agent_type": "patent_analysis",
+                    "name": "Patent Analysis Agent", 
+                    "description": "Default patent analysis processing agent",
+                    "enabled": True
+                },
+                {
+                    "agent_id": "patent_report_default",
+                    "agent_type": "patent_report",
+                    "name": "Patent Report Agent",
+                    "description": "Default patent report generation agent", 
+                    "enabled": True
+                }
+            ]
+            
+            # 创建Agent实例
+            created_count = 0
+            for agent_config_dict in default_patent_agents:
+                try:
+                    from ..models.enums import AgentType
+                    
+                    # 将字符串转换为AgentType枚举
+                    agent_type_str = agent_config_dict["agent_type"]
+                    agent_type_mapping = {
+                        "patent_coordinator": AgentType.PATENT_COORDINATOR,
+                        "patent_data_collection": AgentType.PATENT_DATA_COLLECTION,
+                        "patent_search": AgentType.PATENT_SEARCH,
+                        "patent_analysis": AgentType.PATENT_ANALYSIS,
+                        "patent_report": AgentType.PATENT_REPORT
+                    }
+                    
+                    agent_type = agent_type_mapping.get(agent_type_str)
+                    if not agent_type:
+                        self.logger.warning(f"Unknown agent type: {agent_type_str}")
+                        continue
+                    
+                    # 创建AgentConfig对象
+                    agent_config = AgentConfig(
+                        agent_id=agent_config_dict["agent_id"],
+                        agent_type=agent_type,
+                        name=agent_config_dict["name"],
+                        description=agent_config_dict["description"],
+                        enabled=agent_config_dict["enabled"],
+                        config={}
+                    )
+                    
+                    # 创建Agent实例
+                    success = await self.agent_registry.create_agent(agent_config, default_client)
+                    if success:
+                        created_count += 1
+                        self.logger.info(f"Created default patent agent: {agent_config.agent_id}")
+                        
+                        # 启动Agent
+                        start_success = await self.agent_registry.start_agent(agent_config.agent_id)
+                        if start_success:
+                            self.logger.info(f"Started default patent agent: {agent_config.agent_id}")
+                        else:
+                            self.logger.warning(f"Failed to start default patent agent: {agent_config.agent_id}")
+                    else:
+                        self.logger.warning(f"Failed to create default patent agent: {agent_config.agent_id}")
+                        
+                except Exception as e:
+                    self.logger.error(f"Error creating patent agent {agent_config_dict['agent_id']}: {str(e)}")
+                    continue
+            
+            self.logger.info(f"Created and started {created_count}/{len(default_patent_agents)} default patent agent instances")
+            
+        except Exception as e:
+            self.logger.error(f"Error creating default patent agent instances: {str(e)}")
+            # Don't fail initialization if we can't create instances
+    
+    def _create_mock_model_client(self):
+        """创建模拟的模型客户端用于演示."""
+        from ..services.model_client import BaseModelClient
+        
+        class MockModelClient(BaseModelClient):
+            """模拟模型客户端，用于演示和测试."""
+            
+            def __init__(self):
+                super().__init__()
+                self.provider = "mock"
+                self.model_name = "mock-model"
+                self.is_available = True
+            
+            async def generate_response(self, messages, **kwargs):
+                """生成模拟响应."""
+                return {
+                    "content": "这是一个模拟的AI响应，用于演示专利分析系统。",
+                    "usage": {"total_tokens": 50}
+                }
+            
+            async def health_check(self):
+                """健康检查."""
+                return True
+            
+            def get_model_info(self):
+                """获取模型信息."""
+                return {
+                    "provider": self.provider,
+                    "model": self.model_name,
+                    "status": "available"
+                }
+            
+            def _get_auth_headers(self):
+                """获取认证头."""
+                return {}
+            
+            def _prepare_request_data(self, messages, **kwargs):
+                """准备请求数据."""
+                return {
+                    "messages": messages,
+                    "model": self.model_name
+                }
+            
+            def _parse_response_data(self, response_data):
+                """解析响应数据."""
+                return {
+                    "content": response_data.get("content", "Mock response"),
+                    "usage": response_data.get("usage", {"total_tokens": 50})
+                }
+        
+        return MockModelClient()
     
     async def _initialize_patent_workflows(self) -> bool:
         """初始化专利工作流."""

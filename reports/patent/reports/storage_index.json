@@ -1,5 +1,85 @@
 {
-  "created_at": "2025-09-10T17:48:01.858069",
-  "version": "1.0",
-  "files": {}
+  "files": {
+    "patent_report_20250910_225322_v1.html": {
+      "filename": "patent_report_20250910_225322_v1.html",
+      "format": "html",
+      "path": "reports\\patent\\reports\\patent_report_20250910_225322_v1.html",
+      "size_bytes": 12984,
+      "created_at": "2025-09-10T22:53:22.791293",
+      "version_info": {
+        "version_id": "report_20250910_42f04ce9_v1",
+        "report_id": "report_20250910_42f04ce9",
+        "version_number": 1,
+        "created_at": "2025-09-10T22:53:22.790296",
+        "parameters": {
+          "format": "html",
+          "template": "detailed",
+          "include_charts": true,
+          "include_raw_data": false,
+          "language": "zh",
+          "sections": [
+            "summary",
+            "trend",
+            "competition",
+            "technology",
+            "geographic"
+          ],
+          "chart_types": [
+            "line",
+            "pie",
+            "bar"
+          ],
+          "keywords": [
+            "人工智能",
+            "机器学习",
+            "深度学习"
+          ]
+        },
+        "status": "completed",
+        "updated_at": "2025-09-10T22:53:22.791293"
+      }
+    },
+    "patent_report_20250910_225322_v2.json": {
+      "filename": "patent_report_20250910_225322_v2.json",
+      "format": "json",
+      "path": "reports\\patent\\reports\\patent_report_20250910_225322_v2.json",
+      "size_bytes": 14559,
+      "created_at": "2025-09-10T22:53:22.794793",
+      "version_info": {
+        "version_id": "report_20250910_42f04ce9_v2",
+        "report_id": "report_20250910_42f04ce9",
+        "version_number": 2,
+        "created_at": "2025-09-10T22:53:22.793793",
+        "parameters": {
+          "format": "html",
+          "template": "detailed",
+          "include_charts": true,
+          "include_raw_data": false,
+          "language": "zh",
+          "sections": [
+            "summary",
+            "trend",
+            "competition",
+            "technology",
+            "geographic"
+          ],
+          "chart_types": [
+            "line",
+            "pie",
+            "bar"
+          ],
+          "keywords": [
+            "人工智能",
+            "机器学习",
+            "深度学习"
+          ]
+        },
+        "status": "creating"
+      }
+    }
+  },
+  "stats": {
+    "total_files": 2,
+    "total_size": 27543
+  }
 }

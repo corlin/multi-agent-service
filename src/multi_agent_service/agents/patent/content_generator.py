@@ -769,22 +769,645 @@ Optimized content:
             if market_concentration > 0.6:
                 insights.append("市场呈现寡头竞争格局，新进入者面临较高壁垒")
             
-            if top_applicants and len(top_applicants) > 0:
-                leader = top_applicants[0][0]
-                insights.append(f"{leader}在该领域具有明显的技术优势")
-            
-            insights.append("建议关注主要竞争对手的专利布局策略")
+            if len(top_applicants) > 0:
+                top_applicant = top_applicants[0]
+                insights.append(f"{top_applicant[0]}在该领域处于领先地位，拥有{top_applicant[1]}件专利")
         else:
             if market_concentration > 0.6:
                 insights.append("Market shows oligopolistic competition with high barriers for new entrants")
             
-            if top_applicants and len(top_applicants) > 0:
-                leader = top_applicants[0][0]
-                insights.append(f"{leader} has clear technological advantages in this field")
-            
-            insights.append("Recommend monitoring patent layout strategies of major competitors")
+            if len(top_applicants) > 0:
+                top_applicant = top_applicants[0]
+                insights.append(f"{top_applicant[0]} leads the field with {top_applicant[1]} patents")
         
         return "\n".join([f"• {insight}" for insight in insights])
+    
+    def _analyze_technology_breakdown(self, ipc_distribution: Dict[str, int], 
+                                   main_technologies: List[str], language: str) -> str:
+        """分析技术分解."""
+        breakdown = []
+        
+        # IPC分类分析
+        if ipc_distribution:
+            sorted_ipc = sorted(ipc_distribution.items(), key=lambda x: x[1], reverse=True)[:5]
+            
+            if language == "zh":
+                breakdown.append("**主要IPC分类：**")
+                for ipc, count in sorted_ipc:
+                    percentage = (count / sum(ipc_distribution.values())) * 100
+                    breakdown.append(f"- {ipc}: {count}件 ({percentage:.1f}%)")
+            else:
+                breakdown.append("**Main IPC Classifications:**")
+                for ipc, count in sorted_ipc:
+                    percentage = (count / sum(ipc_distribution.values())) * 100
+                    breakdown.append(f"- {ipc}: {count} patents ({percentage:.1f}%)")
+        
+        # 主要技术方向
+        if main_technologies:
+            if language == "zh":
+                breakdown.append("\n**主要技术方向：**")
+                for i, tech in enumerate(main_technologies[:5], 1):
+                    breakdown.append(f"{i}. {tech}")
+            else:
+                breakdown.append("\n**Main Technology Directions:**")
+                for i, tech in enumerate(main_technologies[:5], 1):
+                    breakdown.append(f"{i}. {tech}")
+        
+        return "\n".join(breakdown)
+    
+    def _generate_technology_insights(self, technology_data: Dict[str, Any], language: str) -> str:
+        """生成技术洞察."""
+        insights = []
+        
+        ipc_distribution = technology_data.get("ipc_distribution", {})
+        main_technologies = technology_data.get("main_technologies", [])
+        
+        if language == "zh":
+            if len(ipc_distribution) > 5:
+                insights.append("技术分布较为分散，显示出多元化发展特征")
+            elif len(ipc_distribution) <= 3:
+                insights.append("技术集中度较高，主要聚焦在少数几个技术领域")
+            
+            if main_technologies:
+                insights.append(f"核心技术方向包括{main_technologies[0]}等领域")
+        else:
+            if len(ipc_distribution) > 5:
+                insights.append("Technology distribution is relatively dispersed, showing diversified development characteristics")
+            elif len(ipc_distribution) <= 3:
+                insights.append("High technology concentration, mainly focused on a few technical fields")
+            
+            if main_technologies:
+                insights.append(f"Core technology directions include {main_technologies[0]} and other fields")
+        
+        return "\n".join([f"• {insight}" for insight in insights])
+    
+    def _generate_technology_trends(self, technology_data: Dict[str, Any], language: str) -> str:
+        """生成技术趋势."""
+        trends = []
+        
+        keyword_clusters = technology_data.get("keyword_clusters", [])
+        
+        if language == "zh":
+            if keyword_clusters:
+                top_cluster = keyword_clusters[0]
+                trends.append(f"{top_cluster['cluster']}是当前最活跃的技术方向")
+            
+            trends.append("技术发展呈现智能化、集成化趋势")
+            trends.append("跨领域技术融合成为重要发展方向")
+        else:
+            if keyword_clusters:
+                top_cluster = keyword_clusters[0]
+                trends.append(f"{top_cluster['cluster']} is currently the most active technology direction")
+            
+            trends.append("Technology development shows trends of intelligence and integration")
+            trends.append("Cross-field technology integration becomes an important development direction")
+        
+        return "\n".join([f"• {trend}" for trend in trends])
+    
+    def _format_top_countries(self, top_countries: List[str], language: str) -> str:
+        """格式化主要国家."""
+        if not top_countries:
+            return "暂无数据" if language == "zh" else "No data available"
+        
+        if language == "zh":
+            return "、".join(top_countries)
+        else:
+            return ", ".join(top_countries)
+    
+    def _analyze_geographic_distribution(self, geographic_data: Dict[str, Any], language: str) -> str:
+        """分析地域分布."""
+        analysis = []
+        
+        country_distribution = geographic_data.get("country_distribution", {})
+        country_percentages = geographic_data.get("country_percentages", {})
+        
+        if country_distribution:
+            total_patents = sum(country_distribution.values())
+            sorted_countries = sorted(country_distribution.items(), key=lambda x: x[1], reverse=True)
+            
+            if language == "zh":
+                analysis.append("**各国/地区专利申请情况：**")
+                for country, count in sorted_countries[:5]:
+                    percentage = country_percentages.get(country, (count/total_patents)*100)
+                    analysis.append(f"- {country}: {count}件 ({percentage:.1f}%)")
+            else:
+                analysis.append("**Patent Applications by Country/Region:**")
+                for country, count in sorted_countries[:5]:
+                    percentage = country_percentages.get(country, (count/total_patents)*100)
+                    analysis.append(f"- {country}: {count} patents ({percentage:.1f}%)")
+        
+        return "\n".join(analysis)
+    
+    def _generate_geographic_insights(self, geographic_data: Dict[str, Any], language: str) -> str:
+        """生成地域洞察."""
+        insights = []
+        
+        country_distribution = geographic_data.get("country_distribution", {})
+        
+        if country_distribution:
+            total_patents = sum(country_distribution.values())
+            sorted_countries = sorted(country_distribution.items(), key=lambda x: x[1], reverse=True)
+            
+            if len(sorted_countries) > 0:
+                top_country, top_count = sorted_countries[0]
+                top_percentage = (top_count / total_patents) * 100
+                
+                if language == "zh":
+                    insights.append(f"{top_country}是该技术领域的主要创新国家，占比{top_percentage:.1f}%")
+                    
+                    if top_percentage > 50:
+                        insights.append("技术创新高度集中在单一国家")
+                    elif len(sorted_countries) >= 3:
+                        insights.append("技术创新呈现多国竞争格局")
+                else:
+                    insights.append(f"{top_country} is the main innovation country in this field, accounting for {top_percentage:.1f}%")
+                    
+                    if top_percentage > 50:
+                        insights.append("Technology innovation is highly concentrated in a single country")
+                    elif len(sorted_countries) >= 3:
+                        insights.append("Technology innovation shows multi-country competition pattern")
+        
+        return "\n".join([f"• {insight}" for insight in insights])
+    
+    def _format_list_items(self, items: List[str], language: str) -> str:
+        """格式化列表项."""
+        if not items:
+            return "暂无数据" if language == "zh" else "No data available"
+        
+        formatted = []
+        for item in items:
+            formatted.append(f"• {item}")
+        
+        return "\n".join(formatted)
+    
+    def _generate_market_opportunities(self, insights_data: Dict[str, Any], language: str) -> str:
+        """生成市场机会."""
+        opportunities = []
+        
+        trends = insights_data.get("trends", [])
+        
+        if language == "zh":
+            opportunities.append("新兴技术领域存在较大发展空间")
+            opportunities.append("跨领域技术整合带来新的商业机会")
+            
+            if trends:
+                opportunities.append(f"基于{trends[0]}的应用创新具有市场潜力")
+        else:
+            opportunities.append("Emerging technology fields have significant development space")
+            opportunities.append("Cross-field technology integration brings new business opportunities")
+            
+            if trends:
+                opportunities.append(f"Application innovation based on {trends[0]} has market potential")
+        
+        return "\n".join([f"• {opportunity}" for opportunity in opportunities])
+    
+    def _generate_strategic_recommendations(self, analysis_data: Dict[str, Any], language: str) -> str:
+        """生成战略建议."""
+        recommendations = []
+        
+        if language == "zh":
+            recommendations.append("加强核心技术研发投入，提升技术竞争力")
+            recommendations.append("关注新兴技术趋势，及时调整技术布局")
+            recommendations.append("建立专利预警机制，规避知识产权风险")
+        else:
+            recommendations.append("Strengthen core technology R&D investment to enhance technological competitiveness")
+            recommendations.append("Pay attention to emerging technology trends and adjust technology layout in time")
+            recommendations.append("Establish patent early warning mechanism to avoid intellectual property risks")
+        
+        return "\n".join([f"• {rec}" for rec in recommendations])
+    
+    def _generate_technical_recommendations(self, analysis_data: Dict[str, Any], language: str) -> str:
+        """生成技术建议."""
+        recommendations = []
+        
+        if language == "zh":
+            recommendations.append("重点发展具有自主知识产权的核心技术")
+            recommendations.append("加强产学研合作，促进技术成果转化")
+            recommendations.append("建立技术标准体系，引领行业发展")
+        else:
+            recommendations.append("Focus on developing core technologies with independent intellectual property rights")
+            recommendations.append("Strengthen industry-university-research cooperation to promote technology transfer")
+            recommendations.append("Establish technical standard system to lead industry development")
+        
+        return "\n".join([f"• {rec}" for rec in recommendations])
+    
+    def _generate_market_recommendations(self, analysis_data: Dict[str, Any], language: str) -> str:
+        """生成市场建议."""
+        recommendations = []
+        
+        if language == "zh":
+            recommendations.append("深入分析目标市场需求，制定差异化竞争策略")
+            recommendations.append("加强品牌建设，提升市场影响力")
+            recommendations.append("建立全球化布局，拓展国际市场")
+        else:
+            recommendations.append("Deeply analyze target market demand and formulate differentiated competitive strategies")
+            recommendations.append("Strengthen brand building to enhance market influence")
+            recommendations.append("Establish global layout and expand international markets")
+        
+        return "\n".join([f"• {rec}" for rec in recommendations])
+    
+    def _generate_conclusions(self, analysis_data: Dict[str, Any], language: str) -> str:
+        """生成结论."""
+        conclusions = []
+        
+        if language == "zh":
+            conclusions.append("该技术领域具有良好的发展前景和市场潜力")
+            conclusions.append("技术创新活跃，竞争格局日趋激烈")
+            conclusions.append("需要持续关注技术发展动态，及时调整战略布局")
+        else:
+            conclusions.append("This technology field has good development prospects and market potential")
+            conclusions.append("Technology innovation is active and competition is becoming increasingly fierce")
+            conclusions.append("Need to continuously monitor technology development trends and adjust strategic layout in time")
+        
+        return "\n".join([f"• {conclusion}" for conclusion in conclusions])
+    
+    async def _improve_content_quality(self, content: Dict[str, Any], quality_report: Dict[str, Any], 
+                                     analysis_data: Dict[str, Any], report_params: Dict[str, Any]) -> Dict[str, Any]:
+        """改进内容质量."""
+        try:
+            improved_content = content.copy()
+            
+            # 根据质量报告改进内容
+            issues = quality_report.get("issues", [])
+            
+            for issue in issues:
+                if issue["type"] == "length":
+                    # 扩展内容长度
+                    section = issue["section"]
+                    if section in improved_content.get("sections", {}):
+                        original = improved_content["sections"][section]
+                        enhanced = await self._expand_section_content(original, section, analysis_data, report_params)
+                        improved_content["sections"][section] = enhanced
+                
+                elif issue["type"] == "detail":
+                    # 增加详细信息
+                    section = issue["section"]
+                    if section in improved_content.get("sections", {}):
+                        original = improved_content["sections"][section]
+                        detailed = await self._add_section_details(original, section, analysis_data, report_params)
+                        improved_content["sections"][section] = detailed
+            
+            return improved_content
+            
+        except Exception as e:
+            self.logger.error(f"Error improving content quality: {str(e)}")
+            return content
+    
+    async def _expand_section_content(self, original_content: str, section: str, 
+                                    analysis_data: Dict[str, Any], report_params: Dict[str, Any]) -> str:
+        """扩展章节内容."""
+        try:
+            language = report_params.get("language", "zh")
+            
+            # 根据章节类型添加更多内容
+            if section == "trend":
+                additional = self._generate_additional_trend_content(analysis_data, language)
+            elif section == "competition":
+                additional = self._generate_additional_competition_content(analysis_data, language)
+            elif section == "technology":
+                additional = self._generate_additional_technology_content(analysis_data, language)
+            else:
+                additional = ""
+            
+            return f"{original_content}\n\n{additional}" if additional else original_content
+            
+        except Exception as e:
+            self.logger.error(f"Error expanding section content: {str(e)}")
+            return original_content
+    
+    async def _add_section_details(self, original_content: str, section: str, 
+                                 analysis_data: Dict[str, Any], report_params: Dict[str, Any]) -> str:
+        """添加章节详细信息."""
+        try:
+            language = report_params.get("language", "zh")
+            
+            # 添加数据支撑和详细分析
+            if section == "trend":
+                details = self._generate_trend_details(analysis_data, language)
+            elif section == "competition":
+                details = self._generate_competition_details(analysis_data, language)
+            elif section == "technology":
+                details = self._generate_technology_details(analysis_data, language)
+            else:
+                details = ""
+            
+            return f"{original_content}\n\n**详细分析：**\n{details}" if details else original_content
+            
+        except Exception as e:
+            self.logger.error(f"Error adding section details: {str(e)}")
+            return original_content
+    
+    def _generate_additional_trend_content(self, analysis_data: Dict[str, Any], language: str) -> str:
+        """生成额外的趋势内容."""
+        trend_data = analysis_data.get("trend_analysis", {})
+        yearly_counts = trend_data.get("yearly_counts", {})
+        
+        if not yearly_counts:
+            return ""
+        
+        if language == "zh":
+            content = "**趋势分析补充：**\n"
+            content += f"数据覆盖{len(yearly_counts)}年时间跨度，"
+            content += f"总计{sum(yearly_counts.values())}件专利申请。"
+        else:
+            content = "**Additional Trend Analysis:**\n"
+            content += f"Data covers {len(yearly_counts)} years timespan, "
+            content += f"totaling {sum(yearly_counts.values())} patent applications."
+        
+        return content
+    
+    def _generate_additional_competition_content(self, analysis_data: Dict[str, Any], language: str) -> str:
+        """生成额外的竞争内容."""
+        competition_data = analysis_data.get("competition_analysis", {})
+        applicant_distribution = competition_data.get("applicant_distribution", {})
+        
+        if not applicant_distribution:
+            return ""
+        
+        if language == "zh":
+            content = "**竞争格局补充：**\n"
+            content += f"共有{len(applicant_distribution)}个申请人参与竞争，"
+            content += "市场参与者多样化程度较高。"
+        else:
+            content = "**Additional Competition Analysis:**\n"
+            content += f"A total of {len(applicant_distribution)} applicants participate in competition, "
+            content += "showing high market participant diversity."
+        
+        return content
+    
+    def _generate_additional_technology_content(self, analysis_data: Dict[str, Any], language: str) -> str:
+        """生成额外的技术内容."""
+        technology_data = analysis_data.get("technology_analysis", {})
+        ipc_distribution = technology_data.get("ipc_distribution", {})
+        
+        if not ipc_distribution:
+            return ""
+        
+        if language == "zh":
+            content = "**技术分析补充：**\n"
+            content += f"涉及{len(ipc_distribution)}个IPC技术分类，"
+            content += "技术覆盖面较为广泛。"
+        else:
+            content = "**Additional Technology Analysis:**\n"
+            content += f"Involves {len(ipc_distribution)} IPC technology classifications, "
+            content += "showing broad technology coverage."
+        
+        return content
+    
+    def _generate_trend_details(self, analysis_data: Dict[str, Any], language: str) -> str:
+        """生成趋势详细信息."""
+        trend_data = analysis_data.get("trend_analysis", {})
+        growth_rates = trend_data.get("growth_rates", {})
+        
+        if not growth_rates:
+            return ""
+        
+        details = []
+        avg_growth = sum(growth_rates.values()) / len(growth_rates) if growth_rates else 0
+        
+        if language == "zh":
+            details.append(f"平均年增长率: {avg_growth:.1f}%")
+            details.append(f"增长率标准差: {self._calculate_std_dev(list(growth_rates.values())):.1f}%")
+        else:
+            details.append(f"Average annual growth rate: {avg_growth:.1f}%")
+            details.append(f"Growth rate standard deviation: {self._calculate_std_dev(list(growth_rates.values())):.1f}%")
+        
+        return "\n".join(details)
+    
+    def _generate_competition_details(self, analysis_data: Dict[str, Any], language: str) -> str:
+        """生成竞争详细信息."""
+        competition_data = analysis_data.get("competition_analysis", {})
+        market_concentration = competition_data.get("market_concentration", 0)
+        
+        details = []
+        
+        if language == "zh":
+            details.append(f"市场集中度指数: {market_concentration:.3f}")
+            details.append(f"竞争强度: {'高' if market_concentration < 0.4 else '中' if market_concentration < 0.7 else '低'}")
+        else:
+            details.append(f"Market concentration index: {market_concentration:.3f}")
+            details.append(f"Competition intensity: {'High' if market_concentration < 0.4 else 'Medium' if market_concentration < 0.7 else 'Low'}")
+        
+        return "\n".join(details)
+    
+    def _generate_technology_details(self, analysis_data: Dict[str, Any], language: str) -> str:
+        """生成技术详细信息."""
+        technology_data = analysis_data.get("technology_analysis", {})
+        keyword_clusters = technology_data.get("keyword_clusters", [])
+        
+        if not keyword_clusters:
+            return ""
+        
+        details = []
+        
+        if language == "zh":
+            details.append(f"技术聚类数量: {len(keyword_clusters)}")
+            if keyword_clusters:
+                top_cluster = keyword_clusters[0]
+                details.append(f"最大技术聚类: {top_cluster.get('cluster', '未知')} ({top_cluster.get('count', 0)}件)")
+        else:
+            details.append(f"Number of technology clusters: {len(keyword_clusters)}")
+            if keyword_clusters:
+                top_cluster = keyword_clusters[0]
+                details.append(f"Largest technology cluster: {top_cluster.get('cluster', 'Unknown')} ({top_cluster.get('count', 0)} patents)")
+        
+        return "\n".join(details)
+    
+    def _calculate_std_dev(self, values: List[float]) -> float:
+        """计算标准差."""
+        if not values:
+            return 0.0
+        
+        mean = sum(values) / len(values)
+        variance = sum((x - mean) ** 2 for x in values) / len(values)
+        return variance ** 0.5
+    
+    def _count_words(self, content: Dict[str, Any]) -> int:
+        """统计内容字数."""
+        total_words = 0
+        
+        try:
+            # 统计摘要字数
+            if "summary" in content:
+                total_words += len(str(content["summary"]))
+            
+            # 统计章节字数
+            if "sections" in content:
+                for section_content in content["sections"].values():
+                    total_words += len(str(section_content))
+            
+            # 统计洞察字数
+            if "insights" in content:
+                total_words += len(str(content["insights"]))
+            
+            # 统计建议字数
+            if "recommendations" in content:
+                total_words += len(str(content["recommendations"]))
+            
+            return total_words
+            
+        except Exception as e:
+            self.logger.error(f"Error counting words: {str(e)}")
+            return 0
+
+
+class ContentQualityController:
+    """内容质量控制器."""
+    
+    def __init__(self):
+        self.quality_thresholds = {
+            "min_summary_length": 100,
+            "min_section_length": 200,
+            "max_section_length": 2000,
+            "min_insights_count": 3,
+            "min_recommendations_count": 3
+        }
+    
+    async def validate_content(self, content: Dict[str, Any]) -> Dict[str, Any]:
+        """验证内容质量."""
+        try:
+            quality_report = {
+                "overall_quality": 0.0,
+                "section_scores": {},
+                "issues": [],
+                "suggestions": []
+            }
+            
+            scores = []
+            
+            # 检查摘要质量
+            if "summary" in content:
+                summary_score = self._validate_summary(content["summary"], quality_report)
+                scores.append(summary_score)
+                quality_report["section_scores"]["summary"] = summary_score
+            
+            # 检查章节质量
+            if "sections" in content:
+                for section_name, section_content in content["sections"].items():
+                    section_score = self._validate_section(section_name, section_content, quality_report)
+                    scores.append(section_score)
+                    quality_report["section_scores"][section_name] = section_score
+            
+            # 检查洞察质量
+            if "insights" in content:
+                insights_score = self._validate_insights(content["insights"], quality_report)
+                scores.append(insights_score)
+                quality_report["section_scores"]["insights"] = insights_score
+            
+            # 检查建议质量
+            if "recommendations" in content:
+                recommendations_score = self._validate_recommendations(content["recommendations"], quality_report)
+                scores.append(recommendations_score)
+                quality_report["section_scores"]["recommendations"] = recommendations_score
+            
+            # 计算总体质量分数
+            quality_report["overall_quality"] = sum(scores) / len(scores) if scores else 0.0
+            
+            return quality_report
+            
+        except Exception as e:
+            return {
+                "overall_quality": 0.0,
+                "section_scores": {},
+                "issues": [{"type": "error", "message": str(e)}],
+                "suggestions": []
+            }
+    
+    def _validate_summary(self, summary: str, quality_report: Dict[str, Any]) -> float:
+        """验证摘要质量."""
+        score = 1.0
+        
+        if len(summary) < self.quality_thresholds["min_summary_length"]:
+            score -= 0.3
+            quality_report["issues"].append({
+                "type": "length",
+                "section": "summary",
+                "message": "Summary too short"
+            })
+        
+        if not summary.strip():
+            score -= 0.5
+            quality_report["issues"].append({
+                "type": "content",
+                "section": "summary", 
+                "message": "Summary is empty"
+            })
+        
+        return max(score, 0.0)
+    
+    def _validate_section(self, section_name: str, section_content: str, quality_report: Dict[str, Any]) -> float:
+        """验证章节质量."""
+        score = 1.0
+        
+        content_length = len(str(section_content))
+        
+        if content_length < self.quality_thresholds["min_section_length"]:
+            score -= 0.2
+            quality_report["issues"].append({
+                "type": "length",
+                "section": section_name,
+                "message": f"Section {section_name} too short"
+            })
+        
+        if content_length > self.quality_thresholds["max_section_length"]:
+            score -= 0.1
+            quality_report["suggestions"].append({
+                "type": "length",
+                "section": section_name,
+                "message": f"Section {section_name} might be too long"
+            })
+        
+        if not str(section_content).strip():
+            score -= 0.5
+            quality_report["issues"].append({
+                "type": "content",
+                "section": section_name,
+                "message": f"Section {section_name} is empty"
+            })
+        
+        return max(score, 0.0)
+    
+    def _validate_insights(self, insights: Any, quality_report: Dict[str, Any]) -> float:
+        """验证洞察质量."""
+        score = 1.0
+        
+        if isinstance(insights, list):
+            insights_count = len(insights)
+        elif isinstance(insights, str):
+            insights_count = len([line for line in insights.split('\n') if line.strip()])
+        else:
+            insights_count = 0
+        
+        if insights_count < self.quality_thresholds["min_insights_count"]:
+            score -= 0.3
+            quality_report["issues"].append({
+                "type": "count",
+                "section": "insights",
+                "message": "Too few insights provided"
+            })
+        
+        return max(score, 0.0)
+    
+    def _validate_recommendations(self, recommendations: Any, quality_report: Dict[str, Any]) -> float:
+        """验证建议质量."""
+        score = 1.0
+        
+        if isinstance(recommendations, list):
+            rec_count = len(recommendations)
+        elif isinstance(recommendations, str):
+            rec_count = len([line for line in recommendations.split('\n') if line.strip()])
+        else:
+            rec_count = 0
+        
+        if rec_count < self.quality_thresholds["min_recommendations_count"]:
+            score -= 0.3
+            quality_report["issues"].append({
+                "type": "count",
+                "section": "recommendations",
+                "message": "Too few recommendations provided"
+            })
+        
+        return max(score, 0.0)
     
     def _analyze_technology_breakdown(self, ipc_distribution: Dict[str, int], 
                                     main_technologies: List[str], language: str) -> str:

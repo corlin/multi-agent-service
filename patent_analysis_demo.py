@@ -285,8 +285,20 @@ class PatentAnalysisDemo:
             if agents:
                 return agents[0]  # 使用第一个可用的协调Agent
             
-            # 如果没有注册的Agent，创建一个简化的模拟协调器
-            logger.warning("未找到注册的专利协调Agent，创建模拟实例")
+            # 如果没有注册的Agent实例，尝试创建一个
+            logger.info("未找到注册的专利协调Agent实例，尝试创建...")
+            
+            try:
+                # 创建真实的专利协调Agent实例
+                coordinator_agent = await self._create_real_patent_coordinator()
+                if coordinator_agent:
+                    logger.info("成功创建真实的专利协调Agent")
+                    return coordinator_agent
+            except Exception as e:
+                logger.warning(f"创建真实专利协调Agent失败: {str(e)}")
+            
+            # 如果创建真实Agent失败，创建模拟协调器
+            logger.warning("创建模拟专利协调Agent实例")
             
             class MockPatentCoordinator:
                 """模拟专利协调Agent"""
@@ -334,6 +346,90 @@ class PatentAnalysisDemo:
             
         except Exception as e:
             logger.error(f"获取专利协调Agent失败: {str(e)}")
+            return None
+    
+    async def _create_real_patent_coordinator(self):
+        """创建真实的专利协调Agent实例."""
+        try:
+            from src.multi_agent_service.models.config import AgentConfig
+            from src.multi_agent_service.agents.patent.coordinator_agent import PatentCoordinatorAgent
+            
+            # 创建简单的模拟模型客户端
+            class SimpleModelClient:
+                """简单的模型客户端用于演示."""
+                
+                def __init__(self):
+                    self.provider = "demo"
+                    self.model_name = "demo-model"
+                    self.is_initialized = False
+                
+                async def initialize(self):
+                    """初始化模型客户端."""
+                    self.is_initialized = True
+                    return True
+                
+                async def generate_response(self, messages, **kwargs):
+                    """生成模拟响应."""
+                    return {
+                        "content": "这是一个演示用的AI响应。",
+                        "usage": {"total_tokens": 50}
+                    }
+                
+                async def health_check(self):
+                    return True
+                
+                def get_model_info(self):
+                    return {"provider": self.provider, "model": self.model_name}
+            
+            # 创建模型配置
+            from src.multi_agent_service.models.config import ModelConfig
+            from src.multi_agent_service.models.enums import ModelProvider
+            
+            model_config = ModelConfig(
+                provider=ModelProvider.CUSTOM,
+                model_name="demo-model",
+                api_key="demo-key",
+                api_base="http://localhost:8000",
+                max_tokens=2048,
+                temperature=0.7
+            )
+            
+            # 创建Agent配置
+            agent_config = AgentConfig(
+                agent_id="demo_patent_coordinator",
+                agent_type=AgentType.PATENT_COORDINATOR,
+                name="Demo Patent Coordinator Agent",
+                description="Demo patent analysis coordinator agent",
+                enabled=True,
+                llm_config=model_config,
+                prompt_template="你是一个专利分析协调Agent，负责协调其他专利分析Agent完成复杂的专利分析任务。",
+                capabilities=["专利工作流协调", "Agent调度", "结果整合"]
+            )
+            
+            # 创建模型客户端
+            model_client = SimpleModelClient()
+            
+            # 创建专利协调Agent实例
+            coordinator = PatentCoordinatorAgent(agent_config, model_client)
+            
+            # 初始化Agent
+            if await coordinator.initialize():
+                # 注册到agent_registry
+                success = await agent_registry.create_agent(agent_config, model_client)
+                if success:
+                    # 启动Agent
+                    await agent_registry.start_agent(agent_config.agent_id)
+                    logger.info(f"Successfully created and started patent coordinator: {agent_config.agent_id}")
+                    return coordinator
+                else:
+                    logger.warning("Failed to register patent coordinator to agent registry")
+                    return coordinator  # 即使注册失败，也返回Agent实例
+            else:
+                logger.error("Failed to initialize patent coordinator")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error creating real patent coordinator: {str(e)}")
             return None
     
     async def display_scenario_result(self, result: Dict[str, Any]):

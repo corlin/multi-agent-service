@@ -59,6 +59,9 @@ class ChartGenerator:
             "interactive": self.config.get("interactive", False)
         }
         
+        # 初始化日志
+        self.logger = logging.getLogger(f"{__name__}.ChartGenerator")
+        
         # 确保输出目录存在
         self._ensure_output_directory()
         
@@ -70,8 +73,6 @@ class ChartGenerator:
         
         # 图表缓存
         self._chart_cache: Dict[str, Dict[str, Any]] = {}
-        
-        self.logger = logging.getLogger(f"{__name__}.ChartGenerator")
     
     def _ensure_output_directory(self):
         """确保输出目录存在."""
@@ -115,8 +116,13 @@ class ChartGenerator:
             # 设置默认模板
             pio.templates.default = "plotly_white"
             
-            # 设置中文字体
-            pio.kaleido.scope.default_font = self.chart_config["font_family"]
+            # 设置中文字体（如果kaleido可用）
+            try:
+                if hasattr(pio, 'kaleido') and pio.kaleido.scope is not None:
+                    pio.kaleido.scope.default_font = self.chart_config["font_family"]
+            except (AttributeError, TypeError):
+                # kaleido不可用或未正确配置，跳过字体设置
+                pass
             
             self.logger.info("Plotly configured successfully")
             
@@ -702,3 +708,246 @@ class ChartGenerator:
             "matplotlib_available": MATPLOTLIB_AVAILABLE,
             "plotly_available": PLOTLY_AVAILABLE
         }
+    
+    async def create_custom_chart_with_style(self, chart_type: str, data: Dict[str, Any], 
+                                           config: Dict[str, Any], style_name: str = "default") -> Dict[str, Any]:
+        """创建带样式的自定义图表."""
+        try:
+            from .chart_styles import ChartStyleConfig
+            
+            # 获取样式配置
+            style_config = ChartStyleConfig.get_style_config(style_name)
+            chart_config = ChartStyleConfig.get_chart_specific_config(chart_type)
+            
+            # 合并配置
+            merged_config = {**config, **style_config, **chart_config}
+            
+            # 创建图表
+            if chart_type == "line":
+                return await self._create_styled_line_chart(data, merged_config)
+            elif chart_type == "pie":
+                return await self._create_styled_pie_chart(data, merged_config)
+            elif chart_type == "bar":
+                return await self._create_styled_bar_chart(data, merged_config)
+            else:
+                return await self.create_custom_chart(chart_type, data, config)
+                
+        except Exception as e:
+            self.logger.error(f"Error creating styled chart: {str(e)}")
+            return {"error": str(e)}
+    
+    async def _create_styled_line_chart(self, data: Dict[str, Any], config: Dict[str, Any]) -> str:
+        """创建带样式的折线图."""
+        try:
+            if not MATPLOTLIB_AVAILABLE:
+                raise ImportError("Matplotlib not available")
+            
+            fig, ax = plt.subplots(figsize=config.get("figure_size", (10, 6)))
+            
+            # 应用样式配置
+            plt.rcParams['font.family'] = config.get("font_family", "Microsoft YaHei")
+            plt.rcParams['font.size'] = config.get("font_size", 12)
+            
+            # 绘制折线图
+            ax.plot(data["x"], data["y"], 
+                   marker=config.get("marker_style", "o"),
+                   linewidth=config.get("line_width", 2),
+                   markersize=config.get("marker_size", 6),
+                   color=config.get("colors", self.chart_config["color_palette"])[0])
+            
+            # 设置标题和标签
+            ax.set_title(config.get("title", ""), fontsize=config.get("title_size", 16), fontweight='bold')
+            ax.set_xlabel(config.get("x_label", ""), fontsize=config.get("font_size", 12))
+            ax.set_ylabel(config.get("y_label", ""), fontsize=config.get("font_size", 12))
+            
+            # 设置网格
+            if config.get("grid", True):
+                ax.grid(True, alpha=config.get("grid_alpha", 0.3))
+            
+            plt.tight_layout()
+            
+            # 保存图表
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"styled_line_chart_{timestamp}.{self.chart_config['format']}"
+            filepath = Path(self.chart_config["output_dir"]) / filename
+            
+            plt.savefig(filepath, dpi=config.get("dpi", 100), bbox_inches='tight', facecolor='white')
+            plt.close()
+            
+            return str(filepath)
+            
+        except Exception as e:
+            self.logger.error(f"Error creating styled line chart: {str(e)}")
+            raise
+    
+    async def _create_styled_pie_chart(self, data: Dict[str, Any], config: Dict[str, Any]) -> str:
+        """创建带样式的饼图."""
+        try:
+            if not MATPLOTLIB_AVAILABLE:
+                raise ImportError("Matplotlib not available")
+            
+            fig, ax = plt.subplots(figsize=config.get("figure_size", (10, 8)))
+            
+            # 应用样式配置
+            plt.rcParams['font.family'] = config.get("font_family", "Microsoft YaHei")
+            plt.rcParams['font.size'] = config.get("font_size", 12)
+            
+            # 准备爆炸效果
+            explode = None
+            if config.get("explode_largest", False):
+                max_index = data["values"].index(max(data["values"]))
+                explode = [config.get("explode_max", 0.1) if i == max_index else 0 for i in range(len(data["values"]))]
+            
+            # 创建饼图
+            colors = config.get("colors", self.chart_config["color_palette"])[:len(data["labels"])]
+            wedges, texts, autotexts = ax.pie(
+                data["values"], 
+                labels=data["labels"], 
+                colors=colors,
+                autopct=config.get("autopct", "%1.1f%%"),
+                startangle=config.get("start_angle", 90),
+                explode=explode,
+                shadow=config.get("shadow", False),
+                textprops={'fontsize': config.get("font_size", 10)}
+            )
+            
+            # 设置标题
+            ax.set_title(config.get("title", ""), fontsize=config.get("title_size", 16), fontweight='bold')
+            
+            # 设置自动文本样式
+            for autotext in autotexts:
+                autotext.set_color('white')
+                autotext.set_fontweight('bold')
+            
+            plt.tight_layout()
+            
+            # 保存图表
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"styled_pie_chart_{timestamp}.{self.chart_config['format']}"
+            filepath = Path(self.chart_config["output_dir"]) / filename
+            
+            plt.savefig(filepath, dpi=config.get("dpi", 100), bbox_inches='tight', facecolor='white')
+            plt.close()
+            
+            return str(filepath)
+            
+        except Exception as e:
+            self.logger.error(f"Error creating styled pie chart: {str(e)}")
+            raise
+    
+    async def _create_styled_bar_chart(self, data: Dict[str, Any], config: Dict[str, Any]) -> str:
+        """创建带样式的柱状图."""
+        try:
+            if not MATPLOTLIB_AVAILABLE:
+                raise ImportError("Matplotlib not available")
+            
+            fig, ax = plt.subplots(figsize=config.get("figure_size", (12, 6)))
+            
+            # 应用样式配置
+            plt.rcParams['font.family'] = config.get("font_family", "Microsoft YaHei")
+            plt.rcParams['font.size'] = config.get("font_size", 12)
+            
+            # 创建柱状图
+            if config.get("horizontal", False):
+                bars = ax.barh(data["x"], data["y"], 
+                              height=config.get("bar_width", 0.8),
+                              color=config.get("colors", self.chart_config["color_palette"])[0],
+                              alpha=config.get("alpha", 0.8),
+                              edgecolor=config.get("edge_color", "white"),
+                              linewidth=config.get("edge_width", 0.7))
+            else:
+                bars = ax.bar(data["x"], data["y"], 
+                             width=config.get("bar_width", 0.8),
+                             color=config.get("colors", self.chart_config["color_palette"])[0],
+                             alpha=config.get("alpha", 0.8),
+                             edgecolor=config.get("edge_color", "white"),
+                             linewidth=config.get("edge_width", 0.7))
+            
+            # 设置标题和标签
+            ax.set_title(config.get("title", ""), fontsize=config.get("title_size", 16), fontweight='bold')
+            ax.set_xlabel(config.get("x_label", ""), fontsize=config.get("font_size", 12))
+            ax.set_ylabel(config.get("y_label", ""), fontsize=config.get("font_size", 12))
+            
+            # 显示数值
+            if config.get("show_values", True):
+                for bar in bars:
+                    if config.get("horizontal", False):
+                        width = bar.get_width()
+                        ax.text(width + max(data["y"]) * 0.01, bar.get_y() + bar.get_height()/2.,
+                               f'{int(width)}', ha='left', va='center', fontsize=10)
+                    else:
+                        height = bar.get_height()
+                        ax.text(bar.get_x() + bar.get_width()/2., height + max(data["y"]) * 0.01,
+                               f'{int(height)}', ha='center', va='bottom', fontsize=10)
+            
+            # 设置网格
+            if config.get("grid", True):
+                ax.grid(True, alpha=config.get("grid_alpha", 0.3), axis='y' if not config.get("horizontal", False) else 'x')
+            
+            # 旋转标签
+            if not config.get("horizontal", False):
+                plt.xticks(rotation=45, ha='right')
+            
+            plt.tight_layout()
+            
+            # 保存图表
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"styled_bar_chart_{timestamp}.{self.chart_config['format']}"
+            filepath = Path(self.chart_config["output_dir"]) / filename
+            
+            plt.savefig(filepath, dpi=config.get("dpi", 100), bbox_inches='tight', facecolor='white')
+            plt.close()
+            
+            return str(filepath)
+            
+        except Exception as e:
+            self.logger.error(f"Error creating styled bar chart: {str(e)}")
+            raise
+    
+    async def generate_chart_with_template(self, template_name: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """使用模板生成图表."""
+        try:
+            from .chart_styles import ChartTemplates
+            
+            # 获取模板配置
+            if template_name == "trend":
+                template = ChartTemplates.get_trend_chart_template()
+            elif template_name == "competition":
+                template = ChartTemplates.get_competition_chart_template()
+            elif template_name == "technology":
+                template = ChartTemplates.get_technology_chart_template()
+            elif template_name == "geographic":
+                template = ChartTemplates.get_geographic_chart_template()
+            else:
+                raise ValueError(f"Unknown template: {template_name}")
+            
+            # 使用模板创建图表
+            chart_type = template["type"]
+            config = {**template, "title": template.get("title", "")}
+            
+            return await self.create_custom_chart(chart_type, data, config)
+            
+        except Exception as e:
+            self.logger.error(f"Error generating chart with template {template_name}: {str(e)}")
+            return {"error": str(e)}
+    
+    async def export_chart_as_base64(self, chart_path: str) -> str:
+        """将图表导出为base64编码."""
+        try:
+            if not os.path.exists(chart_path):
+                raise FileNotFoundError(f"Chart file not found: {chart_path}")
+            
+            with open(chart_path, 'rb') as f:
+                chart_bytes = f.read()
+            
+            # 获取文件扩展名
+            ext = Path(chart_path).suffix[1:].lower()
+            mime_type = f"image/{ext}" if ext in ['png', 'jpg', 'jpeg', 'gif'] else "image/png"
+            
+            # 编码为base64
+            base64_str = base64.b64encode(chart_bytes).decode('utf-8')
+            return f"data:{mime_type};base64,{base64_str}"
+            
+        except Exception as e:
+            self.logger.error(f"Error exporting chart as base64: {str(e)}")
+            return ""

@@ -342,19 +342,29 @@ class AgentRouter:
         
         for agent_type in agent_types:
             try:
-                # 检查agent_registry.get_agent_info是否是异步方法
-                if hasattr(self.agent_registry.get_agent_info, '__call__'):
-                    # 尝试调用，如果是协程则await，否则直接使用
-                    result = self.agent_registry.get_agent_info(agent_type.value)
-                    if hasattr(result, '__await__'):
-                        agent_info = await result
-                    else:
-                        agent_info = result
-                else:
-                    agent_info = await self.agent_registry.get_agent_info(agent_type.value)
+                # 首先检查agent_type是否已注册
+                if not self.agent_registry.is_agent_type_registered(agent_type):
+                    logger.debug(f"Agent type {agent_type} not registered, skipping")
+                    continue
                 
-                if agent_info and agent_info.status != AgentStatus.OFFLINE:
-                    available_agents.append(agent_type)
+                # 获取该类型的所有agent实例
+                agents = self.agent_registry.get_agents_by_type(agent_type)
+                
+                # 检查是否有可用的agent实例
+                if agents:
+                    # 检查至少有一个agent是健康的
+                    for agent in agents:
+                        try:
+                            agent_info = agent.get_status()
+                            if agent_info and agent_info.status != AgentStatus.OFFLINE:
+                                available_agents.append(agent_type)
+                                break
+                        except Exception as e:
+                            logger.warning(f"检查agent {agent.agent_id} 状态失败: {e}")
+                            continue
+                else:
+                    logger.debug(f"No agent instances found for type {agent_type}")
+                    
             except Exception as e:
                 logger.warning(f"检查智能体 {agent_type} 可用性失败: {e}")
                 continue
@@ -375,18 +385,23 @@ class AgentRouter:
         
         for agent_type in agent_types:
             try:
-                # 检查agent_registry.get_agent_info是否是异步方法
-                result = self.agent_registry.get_agent_info(agent_type.value)
-                if hasattr(result, '__await__'):
-                    agent_info = await result
-                else:
-                    agent_info = result
+                # 获取该类型的所有agent实例
+                agents = self.agent_registry.get_agents_by_type(agent_type)
                 
-                if agent_info and agent_info.status != AgentStatus.OFFLINE:
-                    load_ratio = agent_info.current_load / agent_info.max_load
-                    if load_ratio < min_load:
-                        min_load = load_ratio
-                        selected_agent = agent_type
+                if agents:
+                    # 找到负载最低的agent实例
+                    for agent in agents:
+                        try:
+                            agent_info = agent.get_status()
+                            if agent_info and agent_info.status != AgentStatus.OFFLINE:
+                                load_ratio = agent_info.current_load / max(agent_info.max_load, 1)
+                                if load_ratio < min_load:
+                                    min_load = load_ratio
+                                    selected_agent = agent_type
+                        except Exception as e:
+                            logger.warning(f"获取agent {agent.agent_id} 负载信息失败: {e}")
+                            continue
+                            
             except Exception as e:
                 logger.warning(f"获取智能体 {agent_type} 负载信息失败: {e}")
                 continue
@@ -405,7 +420,12 @@ class AgentRouter:
         # 这里可以基于历史数据选择，暂时使用简单的优先级排序
         priority_order = [
             AgentType.COORDINATOR,
+            AgentType.PATENT_COORDINATOR,
             AgentType.MANAGER,
+            AgentType.PATENT_ANALYSIS,
+            AgentType.PATENT_SEARCH,
+            AgentType.PATENT_DATA_COLLECTION,
+            AgentType.PATENT_REPORT,
             AgentType.SALES,
             AgentType.FIELD_SERVICE,
             AgentType.CUSTOMER_SUPPORT
@@ -415,14 +435,16 @@ class AgentRouter:
             if agent_type in agent_types:
                 # 检查智能体是否可用
                 try:
-                    result = self.agent_registry.get_agent_info(agent_type.value)
-                    if hasattr(result, '__await__'):
-                        agent_info = await result
-                    else:
-                        agent_info = result
-                    
-                    if agent_info and agent_info.status != AgentStatus.OFFLINE:
-                        return agent_type
+                    agents = self.agent_registry.get_agents_by_type(agent_type)
+                    if agents:
+                        # 检查至少有一个agent是健康的
+                        for agent in agents:
+                            try:
+                                agent_info = agent.get_status()
+                                if agent_info and agent_info.status != AgentStatus.OFFLINE:
+                                    return agent_type
+                            except Exception:
+                                continue
                 except Exception:
                     continue
         

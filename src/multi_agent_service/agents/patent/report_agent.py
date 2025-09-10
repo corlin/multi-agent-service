@@ -426,10 +426,13 @@ class PatentReportAgent(PatentBaseAgent):
     async def _create_template_engine(self):
         """创建模板引擎."""
         from .template_engine import PatentTemplateEngine
-        return PatentTemplateEngine(
+        template_engine = PatentTemplateEngine(
             template_dir=self.report_config["template_dir"],
             config=self.report_config
         )
+        # 创建默认模板
+        template_engine._create_default_templates()
+        return template_engine
     
     async def _create_chart_generator(self):
         """创建图表生成器."""
@@ -466,13 +469,22 @@ class PatentReportAgent(PatentBaseAgent):
             # 生成内容
             report_result["content"] = await self._content_generator.generate_content(analysis_data, report_params)
             
-            # 渲染模板
-            rendered_content = await self._template_engine.render_template(
-                template_name=report_params["template"],
-                content=report_result["content"],
-                charts=report_result["charts"],
-                params=report_params
-            )
+            # 渲染模板 - 优先使用Jinja2
+            try:
+                rendered_content = await self._template_engine.render_template_with_jinja2(
+                    template_name=report_params["template"],
+                    content=report_result["content"],
+                    charts=report_result["charts"],
+                    params=report_params
+                )
+            except Exception as e:
+                self.logger.warning(f"Jinja2 rendering failed, using fallback: {str(e)}")
+                rendered_content = await self._template_engine.render_template(
+                    template_name=report_params["template"],
+                    content=report_result["content"],
+                    charts=report_result["charts"],
+                    params=report_params
+                )
             
             # 导出文件
             report_result["files"] = await self._report_exporter.export_report(
@@ -599,5 +611,212 @@ class PatentReportAgent(PatentBaseAgent):
         except Exception as e:
             self.logger.error(f"Error generating report actions: {str(e)}")
             return []
+    
+    async def get_report_templates(self) -> List[Dict[str, Any]]:
+        """获取可用的报告模板."""
+        try:
+            if not self._template_engine:
+                await self._initialize_components()
+            
+            return await self._template_engine.list_templates_with_info()
+            
+        except Exception as e:
+            self.logger.error(f"Error getting report templates: {str(e)}")
+            return []
+    
+    async def create_custom_template(self, template_name: str, template_content: str) -> Dict[str, Any]:
+        """创建自定义报告模板."""
+        try:
+            if not self._template_engine:
+                await self._initialize_components()
+            
+            return await self._template_engine.create_custom_template(template_name, template_content)
+            
+        except Exception as e:
+            self.logger.error(f"Error creating custom template: {str(e)}")
+            return {"success": False, "error": str(e)}
+    
+    async def generate_report_with_custom_charts(self, analysis_data: Dict[str, Any], 
+                                               chart_configs: List[Dict[str, Any]], 
+                                               report_params: Dict[str, Any]) -> Dict[str, Any]:
+        """使用自定义图表配置生成报告."""
+        try:
+            # 初始化组件
+            await self._initialize_components()
+            
+            # 生成自定义图表
+            custom_charts = {}
+            for i, chart_config in enumerate(chart_configs):
+                chart_name = chart_config.get("name", f"custom_chart_{i}")
+                chart_type = chart_config.get("type", "bar")
+                chart_data = chart_config.get("data", {})
+                chart_style = chart_config.get("style", "default")
+                
+                try:
+                    chart_result = await self._chart_generator.create_custom_chart_with_style(
+                        chart_type, chart_data, chart_config, chart_style
+                    )
+                    
+                    if "error" not in chart_result:
+                        custom_charts[chart_name] = {
+                            "type": chart_type,
+                            "path": chart_result,
+                            "config": chart_config
+                        }
+                except Exception as e:
+                    self.logger.warning(f"Failed to create custom chart {chart_name}: {str(e)}")
+            
+            # 生成内容
+            content = await self._content_generator.generate_content(analysis_data, report_params)
+            
+            # 渲染模板
+            rendered_content = await self._template_engine.render_template_with_jinja2(
+                template_name=report_params.get("template", "standard"),
+                content=content,
+                charts=custom_charts,
+                params=report_params
+            )
+            
+            # 导出报告
+            export_result = await self._report_exporter.export_report(
+                content=rendered_content,
+                format=report_params.get("format", "html"),
+                params=report_params
+            )
+            
+            return {
+                "status": "success",
+                "content": content,
+                "charts": custom_charts,
+                "export_result": export_result,
+                "custom_charts_count": len(custom_charts)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error generating report with custom charts: {str(e)}")
+            return {
+                "status": "error",
+                "error": str(e)
+            }
+    
+    async def get_report_generation_status(self, report_id: str) -> Dict[str, Any]:
+        """获取报告生成状态."""
+        try:
+            if not self._report_exporter:
+                await self._initialize_components()
+            
+            # 从版本管理器获取状态
+            version_info = await self._report_exporter.version_manager.get_version_by_filename(f"{report_id}.html")
+            
+            if version_info:
+                return {
+                    "report_id": report_id,
+                    "status": version_info.get("status", "unknown"),
+                    "created_at": version_info.get("created_at"),
+                    "updated_at": version_info.get("updated_at"),
+                    "version_number": version_info.get("version_number"),
+                    "metadata": version_info.get("metadata", {})
+                }
+            else:
+                return {
+                    "report_id": report_id,
+                    "status": "not_found",
+                    "error": "Report not found"
+                }
+                
+        except Exception as e:
+            self.logger.error(f"Error getting report status: {str(e)}")
+            return {
+                "report_id": report_id,
+                "status": "error",
+                "error": str(e)
+            }
+    
+    async def list_generated_reports(self, limit: int = 10, format_filter: str = None) -> List[Dict[str, Any]]:
+        """列出已生成的报告."""
+        try:
+            if not self._report_exporter:
+                await self._initialize_components()
+            
+            return await self._report_exporter.list_exported_reports(limit, format_filter)
+            
+        except Exception as e:
+            self.logger.error(f"Error listing reports: {str(e)}")
+            return []
+    
+    async def delete_report(self, filename: str, delete_versions: bool = False) -> Dict[str, Any]:
+        """删除指定报告."""
+        try:
+            if not self._report_exporter:
+                await self._initialize_components()
+            
+            return await self._report_exporter.delete_report(filename, delete_versions)
+            
+        except Exception as e:
+            self.logger.error(f"Error deleting report: {str(e)}")
+            return {
+                "deleted": False,
+                "filename": filename,
+                "error": str(e)
+            }
+    
+    async def get_report_statistics(self) -> Dict[str, Any]:
+        """获取报告生成统计信息."""
+        try:
+            if not self._report_exporter:
+                await self._initialize_components()
+            
+            # 获取存储统计
+            storage_stats = await self._report_exporter.storage_manager.get_storage_stats()
+            
+            # 获取导出器信息
+            exporter_info = await self._report_exporter.get_export_info()
+            
+            # 获取图表生成器信息
+            chart_info = self._chart_generator.get_cache_info() if self._chart_generator else {}
+            
+            return {
+                "storage_statistics": storage_stats,
+                "exporter_info": exporter_info,
+                "chart_info": chart_info,
+                "agent_info": {
+                    "agent_id": self.agent_id,
+                    "agent_type": str(self.agent_type),
+                    "capabilities_count": len(await self.get_capabilities())
+                }
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error getting storage stats: {str(e)}")
+            return {
+                "storage_statistics": {"total_files": 0, "total_size": 0, "format_distribution": {}},
+                "exporter_info": {},
+                "chart_info": {},
+                "agent_info": {
+                    "agent_id": self.agent_id,
+                    "agent_type": str(self.agent_type),
+                    "capabilities_count": 0
+                },
+                "error": str(e)
+            }
+    
+    async def cleanup_old_reports(self, days: int = None) -> Dict[str, Any]:
+        """清理旧报告."""
+        try:
+            if not self._report_exporter:
+                await self._initialize_components()
+            
+            cleanup_days = days or self.report_config.get("auto_cleanup_days", 30)
+            return await self._report_exporter.cleanup_old_reports(cleanup_days)
+            
+        except Exception as e:
+            self.logger.error(f"Error cleaning up reports: {str(e)}")
+            return {
+                "reports_deleted": 0,
+                "versions_cleaned": 0,
+                "temp_files_deleted": 0,
+                "total_space_freed": 0,
+                "errors": [str(e)]
+            }
 
 

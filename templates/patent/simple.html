@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="{{ language or 'zh' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简单专利分析报告</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #fff;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #007acc;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+        .header h1 {
+            color: #007acc;
+            margin: 0;
+            font-size: 2em;
+        }
+        .header .subtitle {
+            color: #666;
+            margin-top: 8px;
+        }
+        .section {
+            margin-bottom: 25px;
+            padding: 15px;
+            border-left: 3px solid #007acc;
+            background-color: #f9f9f9;
+        }
+        .section h2 {
+            color: #333;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        .chart-container {
+            text-align: center;
+            margin: 15px 0;
+        }
+        .chart-container img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>简单专利分析报告</h1>
+            <div class="subtitle">生成时间: {{ generation_time or '未知' }}</div>
+        </div>
+        
+        {% if content.summary %}
+        <div class="section">
+            <h2>📋 摘要</h2>
+            <p>{{ content.summary }}</p>
+        </div>
+        {% endif %}
+        
+        {% if content.sections %}
+        {% for section_name, section_content in content.sections.items() %}
+        <div class="section">
+            <h2>📊 {{ section_name.title() }}分析</h2>
+            {% if charts and charts.get(section_name + '_chart') %}
+            <div class="chart-container">
+                <img src="{{ charts[section_name + '_chart'].path }}" alt="{{ section_name }}图表" />
+            </div>
+            {% endif %}
+            <div>{{ section_content }}</div>
+        </div>
+        {% endfor %}
+        {% endif %}
+        
+        {% if content.insights %}
+        <div class="section">
+            <h2>💡 关键洞察</h2>
+            <div>{{ content.insights }}</div>
+        </div>
+        {% endif %}
+        
+        <div class="footer">
+            <p>本报告由专利分析系统自动生成 | 数据仅供参考</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -759,9 +759,555 @@ class TrendAnalyzer:
         return {
             "overall_confidence": overall_confidence,
             "confidence_level": confidence_level,
-            "confidence_factors": confidence_factors,
-            "recommendations": self._generate_confidence_recommendations(confidence_factors)
+            "confidence_factors": confidence_factors
         }
+    
+    async def _seasonality_analysis(self, processed_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """季节性和周期性分析."""
+        try:
+            # 按月份统计
+            monthly_counts = defaultdict(int)
+            quarterly_counts = defaultdict(int)
+            
+            for patent in processed_data:
+                month = patent.get("month", 0)
+                quarter = patent.get("quarter", 0)
+                
+                if month:
+                    monthly_counts[month] += 1
+                if quarter:
+                    quarterly_counts[quarter] += 1
+            
+            # 检测季节性模式
+            seasonality_patterns = self._detect_seasonality_patterns(monthly_counts, quarterly_counts)
+            
+            # 周期性分析
+            cyclical_analysis = self._analyze_cyclical_patterns(processed_data)
+            
+            return {
+                "monthly_distribution": dict(monthly_counts),
+                "quarterly_distribution": dict(quarterly_counts),
+                "seasonality_patterns": seasonality_patterns,
+                "cyclical_analysis": cyclical_analysis,
+                "has_seasonality": seasonality_patterns.get("has_pattern", False)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error in seasonality analysis: {str(e)}")
+            return {"error": str(e)}
+    
+    def _detect_seasonality_patterns(self, monthly_counts: Dict[int, int], quarterly_counts: Dict[int, int]) -> Dict[str, Any]:
+        """检测季节性模式."""
+        try:
+            patterns = {"has_pattern": False, "pattern_type": "none", "peak_periods": []}
+            
+            if not monthly_counts:
+                return patterns
+            
+            # 计算月度变异系数
+            monthly_values = list(monthly_counts.values())
+            if len(monthly_values) > 6:  # 至少需要半年数据
+                mean_monthly = sum(monthly_values) / len(monthly_values)
+                variance = sum((v - mean_monthly) ** 2 for v in monthly_values) / len(monthly_values)
+                cv = (variance ** 0.5) / mean_monthly if mean_monthly > 0 else 0
+                
+                # 如果变异系数超过阈值，认为有季节性
+                if cv > 0.3:
+                    patterns["has_pattern"] = True
+                    patterns["pattern_type"] = "seasonal"
+                    
+                    # 找出峰值月份
+                    max_count = max(monthly_values)
+                    peak_months = [month for month, count in monthly_counts.items() if count >= max_count * 0.8]
+                    patterns["peak_periods"] = peak_months
+            
+            # 季度分析
+            if quarterly_counts and len(quarterly_counts) == 4:
+                quarterly_values = list(quarterly_counts.values())
+                max_q = max(quarterly_values)
+                min_q = min(quarterly_values)
+                
+                if max_q > min_q * 1.5:  # 季度差异超过50%
+                    patterns["quarterly_pattern"] = True
+                    peak_quarter = max(quarterly_counts.keys(), key=lambda q: quarterly_counts[q])
+                    patterns["peak_quarter"] = peak_quarter
+            
+            return patterns
+            
+        except Exception as e:
+            self.logger.error(f"Error detecting seasonality patterns: {str(e)}")
+            return {"has_pattern": False, "error": str(e)}
+    
+    def _analyze_cyclical_patterns(self, processed_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """分析周期性模式."""
+        try:
+            # 按年份统计
+            yearly_counts = defaultdict(int)
+            for patent in processed_data:
+                year = patent.get("year")
+                if year:
+                    yearly_counts[year] += 1
+            
+            if len(yearly_counts) < 6:  # 需要至少6年数据
+                return {"insufficient_data": True}
+            
+            years = sorted(yearly_counts.keys())
+            counts = [yearly_counts[year] for year in years]
+            
+            # 简单的周期检测（检查2-5年周期）
+            cycles_detected = []
+            
+            for cycle_length in range(2, 6):
+                if len(counts) >= cycle_length * 2:
+                    correlation = self._calculate_cycle_correlation(counts, cycle_length)
+                    if correlation > 0.6:
+                        cycles_detected.append({
+                            "cycle_length": cycle_length,
+                            "correlation": correlation,
+                            "strength": "strong" if correlation > 0.8 else "moderate"
+                        })
+            
+            return {
+                "cycles_detected": cycles_detected,
+                "has_cyclical_pattern": len(cycles_detected) > 0,
+                "dominant_cycle": max(cycles_detected, key=lambda x: x["correlation"]) if cycles_detected else None
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error analyzing cyclical patterns: {str(e)}")
+            return {"error": str(e)}
+    
+    def _calculate_cycle_correlation(self, data: List[int], cycle_length: int) -> float:
+        """计算周期相关性."""
+        try:
+            if len(data) < cycle_length * 2:
+                return 0.0
+            
+            # 将数据分成周期段
+            cycles = []
+            for i in range(0, len(data) - cycle_length + 1, cycle_length):
+                cycle = data[i:i + cycle_length]
+                if len(cycle) == cycle_length:
+                    cycles.append(cycle)
+            
+            if len(cycles) < 2:
+                return 0.0
+            
+            # 计算周期间的相关性
+            correlations = []
+            for i in range(len(cycles) - 1):
+                corr = self._pearson_correlation(cycles[i], cycles[i + 1])
+                correlations.append(corr)
+            
+            return sum(correlations) / len(correlations) if correlations else 0.0
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating cycle correlation: {str(e)}")
+            return 0.0
+    
+    def _pearson_correlation(self, x: List[int], y: List[int]) -> float:
+        """计算皮尔逊相关系数."""
+        try:
+            if len(x) != len(y) or len(x) == 0:
+                return 0.0
+            
+            n = len(x)
+            sum_x = sum(x)
+            sum_y = sum(y)
+            sum_xy = sum(x[i] * y[i] for i in range(n))
+            sum_x2 = sum(xi * xi for xi in x)
+            sum_y2 = sum(yi * yi for yi in y)
+            
+            numerator = n * sum_xy - sum_x * sum_y
+            denominator = ((n * sum_x2 - sum_x * sum_x) * (n * sum_y2 - sum_y * sum_y)) ** 0.5
+            
+            return numerator / denominator if denominator != 0 else 0.0
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating Pearson correlation: {str(e)}")
+            return 0.0
+    
+    async def _outlier_detection(self, processed_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """异常值检测和处理."""
+        try:
+            # 按年份统计
+            yearly_counts = defaultdict(int)
+            for patent in processed_data:
+                year = patent.get("year")
+                if year:
+                    yearly_counts[year] += 1
+            
+            if len(yearly_counts) < 3:
+                return {"insufficient_data": True}
+            
+            counts = list(yearly_counts.values())
+            years = list(yearly_counts.keys())
+            
+            # 使用IQR方法检测异常值
+            outliers = self._detect_outliers_iqr(counts, years)
+            
+            # 使用Z-score方法检测异常值
+            z_score_outliers = self._detect_outliers_zscore(counts, years)
+            
+            # 合并异常值检测结果
+            all_outliers = self._merge_outlier_results(outliers, z_score_outliers)
+            
+            # 分析异常值的可能原因
+            outlier_analysis = self._analyze_outlier_causes(all_outliers, processed_data)
+            
+            return {
+                "outliers_detected": all_outliers,
+                "outlier_count": len(all_outliers),
+                "outlier_analysis": outlier_analysis,
+                "detection_methods": ["IQR", "Z-score"],
+                "has_outliers": len(all_outliers) > 0
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error in outlier detection: {str(e)}")
+            return {"error": str(e)}
+    
+    def _detect_outliers_iqr(self, counts: List[int], years: List[int]) -> List[Dict[str, Any]]:
+        """使用IQR方法检测异常值."""
+        try:
+            if len(counts) < 4:
+                return []
+            
+            sorted_counts = sorted(counts)
+            n = len(sorted_counts)
+            
+            # 计算四分位数
+            q1_idx = n // 4
+            q3_idx = 3 * n // 4
+            q1 = sorted_counts[q1_idx]
+            q3 = sorted_counts[q3_idx]
+            iqr = q3 - q1
+            
+            # 计算异常值边界
+            lower_bound = q1 - 1.5 * iqr
+            upper_bound = q3 + 1.5 * iqr
+            
+            # 找出异常值
+            outliers = []
+            for i, count in enumerate(counts):
+                if count < lower_bound or count > upper_bound:
+                    outliers.append({
+                        "year": years[i],
+                        "value": count,
+                        "type": "low" if count < lower_bound else "high",
+                        "method": "IQR",
+                        "deviation": abs(count - (q1 + q3) / 2)
+                    })
+            
+            return outliers
+            
+        except Exception as e:
+            self.logger.error(f"Error in IQR outlier detection: {str(e)}")
+            return []
+    
+    def _detect_outliers_zscore(self, counts: List[int], years: List[int], threshold: float = 2.0) -> List[Dict[str, Any]]:
+        """使用Z-score方法检测异常值."""
+        try:
+            if len(counts) < 3:
+                return []
+            
+            mean_count = sum(counts) / len(counts)
+            variance = sum((c - mean_count) ** 2 for c in counts) / len(counts)
+            std_dev = variance ** 0.5
+            
+            if std_dev == 0:
+                return []
+            
+            outliers = []
+            for i, count in enumerate(counts):
+                z_score = abs(count - mean_count) / std_dev
+                if z_score > threshold:
+                    outliers.append({
+                        "year": years[i],
+                        "value": count,
+                        "z_score": z_score,
+                        "type": "high" if count > mean_count else "low",
+                        "method": "Z-score",
+                        "deviation": abs(count - mean_count)
+                    })
+            
+            return outliers
+            
+        except Exception as e:
+            self.logger.error(f"Error in Z-score outlier detection: {str(e)}")
+            return []
+    
+    def _merge_outlier_results(self, iqr_outliers: List[Dict[str, Any]], zscore_outliers: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """合并异常值检测结果."""
+        try:
+            # 创建年份到异常值的映射
+            outlier_map = {}
+            
+            # 添加IQR检测的异常值
+            for outlier in iqr_outliers:
+                year = outlier["year"]
+                if year not in outlier_map:
+                    outlier_map[year] = outlier.copy()
+                    outlier_map[year]["detection_methods"] = [outlier["method"]]
+                else:
+                    outlier_map[year]["detection_methods"].append(outlier["method"])
+            
+            # 添加Z-score检测的异常值
+            for outlier in zscore_outliers:
+                year = outlier["year"]
+                if year not in outlier_map:
+                    outlier_map[year] = outlier.copy()
+                    outlier_map[year]["detection_methods"] = [outlier["method"]]
+                else:
+                    outlier_map[year]["detection_methods"].append(outlier["method"])
+                    # 如果两种方法都检测到，增加置信度
+                    outlier_map[year]["confidence"] = "high"
+            
+            # 设置置信度
+            for outlier in outlier_map.values():
+                if "confidence" not in outlier:
+                    outlier["confidence"] = "medium" if len(outlier["detection_methods"]) == 1 else "high"
+            
+            return list(outlier_map.values())
+            
+        except Exception as e:
+            self.logger.error(f"Error merging outlier results: {str(e)}")
+            return []
+    
+    def _analyze_outlier_causes(self, outliers: List[Dict[str, Any]], processed_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """分析异常值的可能原因."""
+        try:
+            if not outliers:
+                return {"no_outliers": True}
+            
+            outlier_years = {outlier["year"] for outlier in outliers}
+            
+            # 分析异常年份的特征
+            outlier_characteristics = {}
+            
+            for year in outlier_years:
+                year_patents = [p for p in processed_data if p.get("year") == year]
+                
+                if year_patents:
+                    # 分析申请人分布
+                    applicants = [p.get("applicant", "Unknown") for p in year_patents]
+                    unique_applicants = len(set(applicants))
+                    
+                    # 分析技术领域分布
+                    ipc_classes = []
+                    for p in year_patents:
+                        ipc_classes.extend(p.get("ipc_classes", []))
+                    unique_ipc = len(set(ipc_classes))
+                    
+                    # 分析国家分布
+                    countries = [p.get("country", "Unknown") for p in year_patents]
+                    unique_countries = len(set(countries))
+                    
+                    outlier_characteristics[year] = {
+                        "patent_count": len(year_patents),
+                        "unique_applicants": unique_applicants,
+                        "unique_technologies": unique_ipc,
+                        "unique_countries": unique_countries,
+                        "diversity_score": (unique_applicants + unique_ipc + unique_countries) / 3
+                    }
+            
+            # 生成可能的原因分析
+            possible_causes = self._generate_outlier_cause_hypotheses(outliers, outlier_characteristics)
+            
+            return {
+                "outlier_characteristics": outlier_characteristics,
+                "possible_causes": possible_causes,
+                "analysis_summary": f"检测到{len(outliers)}个异常年份，可能原因包括政策变化、技术突破或市场事件"
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error analyzing outlier causes: {str(e)}")
+            return {"error": str(e)}
+    
+    def _generate_outlier_cause_hypotheses(self, outliers: List[Dict[str, Any]], characteristics: Dict[int, Dict[str, Any]]) -> List[str]:
+        """生成异常值原因假设."""
+        try:
+            hypotheses = []
+            
+            for outlier in outliers:
+                year = outlier["year"]
+                outlier_type = outlier["type"]
+                value = outlier["value"]
+                
+                char = characteristics.get(year, {})
+                
+                if outlier_type == "high":
+                    if char.get("diversity_score", 0) > 10:
+                        hypotheses.append(f"{year}年专利申请激增可能由于多个领域同时活跃")
+                    elif char.get("unique_applicants", 0) < 5:
+                        hypotheses.append(f"{year}年专利申请激增可能由于少数大型申请人集中申请")
+                    else:
+                        hypotheses.append(f"{year}年专利申请激增可能由于政策激励或技术突破")
+                
+                elif outlier_type == "low":
+                    hypotheses.append(f"{year}年专利申请量异常偏低可能由于经济环境或政策变化")
+            
+            return list(set(hypotheses))  # 去重
+            
+        except Exception as e:
+            self.logger.error(f"Error generating outlier cause hypotheses: {str(e)}")
+            return []
+    
+    async def _comprehensive_trend_assessment(self, analysis_results: Dict[str, Any]) -> Dict[str, Any]:
+        """综合趋势评估."""
+        try:
+            assessment = {
+                "overall_trend": "stable",
+                "trend_strength": 0.5,
+                "trend_reliability": 0.5,
+                "key_characteristics": [],
+                "risk_factors": [],
+                "opportunities": []
+            }
+            
+            # 基于时间序列分析的评估
+            if "time_series" in analysis_results:
+                ts_data = analysis_results["time_series"]
+                trend_strength = ts_data.get("trend_strength", {})
+                
+                if trend_strength.get("direction") == "increasing":
+                    assessment["overall_trend"] = "increasing"
+                    assessment["trend_strength"] = trend_strength.get("strength", 0.5)
+                    assessment["key_characteristics"].append("专利申请量呈上升趋势")
+                elif trend_strength.get("direction") == "decreasing":
+                    assessment["overall_trend"] = "decreasing"
+                    assessment["trend_strength"] = trend_strength.get("strength", 0.5)
+                    assessment["key_characteristics"].append("专利申请量呈下降趋势")
+            
+            # 基于年度增长分析的评估
+            if "yearly_analysis" in analysis_results:
+                yearly_data = analysis_results["yearly_analysis"]
+                cagr = yearly_data.get("cagr", 0)
+                growth_pattern = yearly_data.get("growth_pattern", "stable")
+                
+                if cagr > 10:
+                    assessment["opportunities"].append("高复合增长率显示强劲发展潜力")
+                elif cagr < -10:
+                    assessment["risk_factors"].append("负增长率显示市场萎缩风险")
+                
+                if growth_pattern == "rapid_growth":
+                    assessment["key_characteristics"].append("快速增长阶段")
+                elif growth_pattern == "declining":
+                    assessment["risk_factors"].append("市场进入衰退期")
+            
+            # 基于预测分析的评估
+            if "prediction" in analysis_results:
+                prediction_data = analysis_results["prediction"]
+                confidence_assessment = prediction_data.get("confidence_assessment", {})
+                
+                overall_confidence = confidence_assessment.get("overall_confidence", 0.5)
+                assessment["trend_reliability"] = overall_confidence
+                
+                if overall_confidence > 0.8:
+                    assessment["key_characteristics"].append("趋势预测高度可信")
+                elif overall_confidence < 0.5:
+                    assessment["risk_factors"].append("趋势预测不确定性较高")
+            
+            # 基于季节性分析的评估
+            if "seasonality" in analysis_results:
+                seasonality_data = analysis_results["seasonality"]
+                
+                if seasonality_data.get("has_seasonality", False):
+                    assessment["key_characteristics"].append("存在明显的季节性模式")
+                    peak_periods = seasonality_data.get("seasonality_patterns", {}).get("peak_periods", [])
+                    if peak_periods:
+                        assessment["opportunities"].append(f"可在{peak_periods}等高峰期加强布局")
+            
+            # 基于异常值检测的评估
+            if "outliers" in analysis_results:
+                outlier_data = analysis_results["outliers"]
+                
+                if outlier_data.get("has_outliers", False):
+                    outlier_count = outlier_data.get("outlier_count", 0)
+                    if outlier_count > 2:
+                        assessment["risk_factors"].append("存在多个异常年份，需关注外部影响因素")
+                    else:
+                        assessment["key_characteristics"].append("整体趋势稳定，偶有波动")
+            
+            # 生成综合评级
+            assessment["trend_grade"] = self._calculate_trend_grade(assessment)
+            
+            return assessment
+            
+        except Exception as e:
+            self.logger.error(f"Error in comprehensive trend assessment: {str(e)}")
+            return {"error": str(e)}
+    
+    def _calculate_trend_grade(self, assessment: Dict[str, Any]) -> str:
+        """计算趋势评级."""
+        try:
+            score = 0
+            
+            # 基于趋势方向评分
+            if assessment["overall_trend"] == "increasing":
+                score += 30
+            elif assessment["overall_trend"] == "stable":
+                score += 20
+            else:  # decreasing
+                score += 10
+            
+            # 基于趋势强度评分
+            trend_strength = assessment.get("trend_strength", 0.5)
+            score += trend_strength * 30
+            
+            # 基于可靠性评分
+            reliability = assessment.get("trend_reliability", 0.5)
+            score += reliability * 25
+            
+            # 基于风险因素扣分
+            risk_count = len(assessment.get("risk_factors", []))
+            score -= risk_count * 5
+            
+            # 基于机会因素加分
+            opportunity_count = len(assessment.get("opportunities", []))
+            score += opportunity_count * 3
+            
+            # 转换为等级
+            if score >= 80:
+                return "A"  # 优秀
+            elif score >= 70:
+                return "B"  # 良好
+            elif score >= 60:
+                return "C"  # 一般
+            elif score >= 50:
+                return "D"  # 较差
+            else:
+                return "E"  # 差
+                
+        except Exception as e:
+            self.logger.error(f"Error calculating trend grade: {str(e)}")
+            return "C"
+    
+    async def _update_performance_metrics(self, processing_time: float, success: bool):
+        """更新性能指标."""
+        try:
+            self.performance_metrics["analysis_count"] += 1
+            
+            # 更新平均处理时间
+            current_avg = self.performance_metrics["average_processing_time"]
+            count = self.performance_metrics["analysis_count"]
+            new_avg = ((current_avg * (count - 1)) + processing_time) / count
+            self.performance_metrics["average_processing_time"] = new_avg
+            
+            # 更新成功率
+            if success:
+                success_count = self.performance_metrics["success_rate"] * (count - 1) + 1
+            else:
+                success_count = self.performance_metrics["success_rate"] * (count - 1)
+            
+            self.performance_metrics["success_rate"] = success_count / count
+            
+        except Exception as e:
+            self.logger.error(f"Error updating performance metrics: {str(e)}")
+    
+    def get_performance_metrics(self) -> Dict[str, Any]:
+        """获取性能指标."""
+        return self.performance_metrics.copy()
     
     def _generate_confidence_recommendations(self, confidence_factors: Dict[str, float]) -> List[str]:
         """生成置信度改进建议."""

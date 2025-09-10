@@ -613,6 +613,100 @@ class PatentCoordinatorAgent(CoordinatorAgent):
             resolution_method="hybrid_execution"
         )
     
+    async def _call_patent_agent(self, agent_id: str, request: UserRequest) -> AgentResponse:
+        """调用指定的专利Agent."""
+        try:
+            # 获取Agent路由器
+            if not self.agent_router:
+                # 动态导入以避免循环依赖
+                from ...services.agent_router import AgentRouter
+                from ...services.intent_analyzer import IntentAnalyzer
+                from ...agents.registry import agent_registry
+                from ...config.config_manager import ConfigManager
+                
+                config_manager = ConfigManager()
+                intent_analyzer = IntentAnalyzer(config_manager)
+                self.agent_router = AgentRouter(intent_analyzer, agent_registry)
+            
+            # 映射agent_id到AgentType
+            agent_type_mapping = {
+                "patent_data_collection_agent": AgentType.PATENT_DATA_COLLECTION,
+                "patent_search_agent": AgentType.PATENT_SEARCH,
+                "patent_analysis_agent": AgentType.PATENT_ANALYSIS,
+                "patent_report_agent": AgentType.PATENT_REPORT,
+                "patent_coordinator_agent": AgentType.PATENT_COORDINATOR
+            }
+            
+            agent_type = agent_type_mapping.get(agent_id)
+            if not agent_type:
+                raise ValueError(f"Unknown patent agent ID: {agent_id}")
+            
+            # 获取Agent实例
+            from ...agents.registry import agent_registry
+            agents = agent_registry.get_agents_by_type(agent_type)
+            
+            if not agents:
+                raise RuntimeError(f"No agents found for type: {agent_type}")
+            
+            # 选择最佳Agent实例（负载最低的健康Agent）
+            best_agent = None
+            min_load = float('inf')
+            
+            for agent in agents:
+                try:
+                    if agent.is_healthy():
+                        agent_info = agent.get_status()
+                        load_ratio = agent_info.current_load / max(agent_info.max_load, 1)
+                        if load_ratio < min_load:
+                            min_load = load_ratio
+                            best_agent = agent
+                except Exception as e:
+                    self.logger.warning(f"Error checking agent {agent.agent_id} status: {str(e)}")
+                    continue
+            
+            if not best_agent:
+                raise RuntimeError(f"No healthy agents available for type: {agent_type}")
+            
+            # 调用Agent
+            self.logger.info(f"Calling patent agent {best_agent.agent_id} for request {request.request_id}")
+            response = await best_agent.process_request(request)
+            
+            if not response:
+                raise RuntimeError(f"Agent {best_agent.agent_id} returned no response")
+            
+            # 添加调用元数据
+            if not response.metadata:
+                response.metadata = {}
+            
+            response.metadata.update({
+                "called_by": self.agent_id,
+                "call_timestamp": datetime.now().isoformat(),
+                "agent_load": min_load,
+                "coordination_context": True
+            })
+            
+            return response
+            
+        except Exception as e:
+            self.logger.error(f"Error calling patent agent {agent_id}: {str(e)}")
+            return self._create_error_response(agent_id, f"Agent call failed: {str(e)}")
+    
+    def _create_error_response(self, agent_id: str, error_message: str) -> AgentResponse:
+        """创建错误响应."""
+        return AgentResponse(
+            agent_id=agent_id,
+            agent_type=AgentType.CUSTOM,
+            response_content=f"❌ **Agent调用失败**\n\n**Agent**: {agent_id}\n**错误**: {error_message}\n\n请检查Agent状态或稍后重试。",
+            confidence=0.0,
+            collaboration_needed=False,
+            metadata={
+                "error": True,
+                "error_message": error_message,
+                "failed_agent": agent_id,
+                "timestamp": datetime.now().isoformat()
+            }
+        )
+
     async def _call_patent_agent_with_retry(self, agent_id: str, request: UserRequest, 
                                           max_retries: int = 3, retry_delay: float = 1.0) -> AgentResponse:
         """带重试机制的Agent调用."""
@@ -1310,3 +1404,396 @@ class PatentCoordinatorAgent(CoordinatorAgent):
                 "failed_at": datetime.now().isoformat()
             }
         )
+    
+    # 结果整合方法
+    def _integrate_sequential_patent_results(self, results: List[AgentResponse], 
+                                           workflow_context: Dict[str, Any]) -> str:
+        """整合顺序执行的专利分析结果."""
+        try:
+            successful_results = [r for r in results if r.confidence > 0.0]
+            
+            if not successful_results:
+                return "❌ **专利分析失败**\n\n所有Agent都未能成功处理请求。请检查系统状态或稍后重试。"
+            
+            # 按Agent类型组织结果
+            organized_results = {}
+            for result in successful_results:
+                agent_type = self._identify_agent_type_from_id(result.agent_id)
+                organized_results[agent_type] = result.response_content
+            
+            # 生成综合报告
+            report_sections = []
+            
+            if "data_collection" in organized_results:
+                report_sections.append(f"## 📊 数据收集结果\n{organized_results['data_collection']}")
+            
+            if "search" in organized_results:
+                report_sections.append(f"## 🔍 搜索增强结果\n{organized_results['search']}")
+            
+            if "analysis" in organized_results:
+                report_sections.append(f"## 📈 分析处理结果\n{organized_results['analysis']}")
+            
+            if "report" in organized_results:
+                report_sections.append(f"## 📋 报告生成结果\n{organized_results['report']}")
+            
+            # 添加执行摘要
+            execution_summary = f"""# 🎯 专利分析执行摘要
+
+**执行模式**: 顺序执行
+**成功Agent数**: {len(successful_results)}/{len(results)}
+**执行时间**: {workflow_context.get('start_time', 'Unknown')}
+**工作流ID**: {workflow_context.get('workflow_id', 'Unknown')}
+
+---
+
+"""
+            
+            return execution_summary + "\n\n".join(report_sections)
+            
+        except Exception as e:
+            self.logger.error(f"Error integrating sequential results: {str(e)}")
+            return f"❌ **结果整合失败**: {str(e)}"
+    
+    def _integrate_parallel_patent_results(self, results: List[AgentResponse], 
+                                         workflow_context: Dict[str, Any]) -> str:
+        """整合并行执行的专利分析结果."""
+        try:
+            successful_results = [r for r in results if r.confidence > 0.0]
+            
+            if not successful_results:
+                return "❌ **专利分析失败**\n\n所有Agent都未能成功处理请求。请检查系统状态或稍后重试。"
+            
+            # 按置信度排序
+            successful_results.sort(key=lambda x: x.confidence, reverse=True)
+            
+            # 生成并行执行报告
+            report_sections = []
+            
+            # 添加执行摘要
+            avg_confidence = sum(r.confidence for r in successful_results) / len(successful_results)
+            execution_summary = f"""# ⚡ 专利分析并行执行结果
+
+**执行模式**: 并行执行
+**成功Agent数**: {len(successful_results)}/{len(results)}
+**平均置信度**: {avg_confidence:.2f}
+**执行时间**: {workflow_context.get('start_time', 'Unknown')}
+**工作流ID**: {workflow_context.get('workflow_id', 'Unknown')}
+
+---
+
+"""
+            
+            # 按置信度展示结果
+            for i, result in enumerate(successful_results, 1):
+                agent_type = self._identify_agent_type_from_id(result.agent_id)
+                report_sections.append(f"""## {i}. {agent_type.upper()} (置信度: {result.confidence:.2f})
+
+{result.response_content}
+
+---
+""")
+            
+            return execution_summary + "\n".join(report_sections)
+            
+        except Exception as e:
+            self.logger.error(f"Error integrating parallel results: {str(e)}")
+            return f"❌ **结果整合失败**: {str(e)}"
+    
+    def _integrate_hierarchical_patent_results(self, results: List[AgentResponse], 
+                                             workflow_context: Dict[str, Any]) -> str:
+        """整合分层执行的专利分析结果."""
+        try:
+            successful_results = [r for r in results if r.confidence > 0.0]
+            
+            if not successful_results:
+                return "❌ **专利分析失败**\n\n所有Agent都未能成功处理请求。请检查系统状态或稍后重试。"
+            
+            # 按层级组织结果
+            layers = {
+                "data_layer": [],
+                "analysis_layer": [],
+                "report_layer": []
+            }
+            
+            for result in successful_results:
+                agent_type = self._identify_agent_type_from_id(result.agent_id)
+                if agent_type in ["data_collection", "search"]:
+                    layers["data_layer"].append(result)
+                elif agent_type in ["analysis"]:
+                    layers["analysis_layer"].append(result)
+                elif agent_type in ["report"]:
+                    layers["report_layer"].append(result)
+            
+            # 生成分层报告
+            report_sections = []
+            
+            # 执行摘要
+            execution_summary = f"""# 🏗️ 专利分析分层执行结果
+
+**执行模式**: 分层执行
+**成功Agent数**: {len(successful_results)}/{len(results)}
+**执行层级**: {len([layer for layer in layers.values() if layer])}层
+**工作流ID**: {workflow_context.get('workflow_id', 'Unknown')}
+
+---
+
+"""
+            
+            # 数据层结果
+            if layers["data_layer"]:
+                report_sections.append("## 📊 第一层：数据收集与搜索")
+                for result in layers["data_layer"]:
+                    agent_type = self._identify_agent_type_from_id(result.agent_id)
+                    report_sections.append(f"### {agent_type.upper()}\n{result.response_content}\n")
+            
+            # 分析层结果
+            if layers["analysis_layer"]:
+                report_sections.append("## 📈 第二层：分析处理")
+                for result in layers["analysis_layer"]:
+                    report_sections.append(f"{result.response_content}\n")
+            
+            # 报告层结果
+            if layers["report_layer"]:
+                report_sections.append("## 📋 第三层：报告生成")
+                for result in layers["report_layer"]:
+                    report_sections.append(f"{result.response_content}\n")
+            
+            return execution_summary + "\n".join(report_sections)
+            
+        except Exception as e:
+            self.logger.error(f"Error integrating hierarchical results: {str(e)}")
+            return f"❌ **结果整合失败**: {str(e)}"
+    
+    def _integrate_hybrid_patent_results(self, results: List[AgentResponse], 
+                                       workflow_context: Dict[str, Any]) -> str:
+        """整合混合执行的专利分析结果."""
+        try:
+            successful_results = [r for r in results if r.confidence > 0.0]
+            
+            if not successful_results:
+                return "❌ **专利分析失败**\n\n所有Agent都未能成功处理请求。请检查系统状态或稍后重试。"
+            
+            # 分组：并行执行的和顺序执行的
+            parallel_results = []
+            sequential_results = []
+            
+            for result in successful_results:
+                agent_type = self._identify_agent_type_from_id(result.agent_id)
+                if agent_type in ["data_collection", "search"]:
+                    parallel_results.append(result)
+                else:
+                    sequential_results.append(result)
+            
+            # 生成混合执行报告
+            report_sections = []
+            
+            # 执行摘要
+            execution_summary = f"""# 🔄 专利分析混合执行结果
+
+**执行模式**: 混合执行（并行+顺序）
+**成功Agent数**: {len(successful_results)}/{len(results)}
+**并行执行**: {len(parallel_results)}个Agent
+**顺序执行**: {len(sequential_results)}个Agent
+**工作流ID**: {workflow_context.get('workflow_id', 'Unknown')}
+
+---
+
+"""
+            
+            # 并行执行结果
+            if parallel_results:
+                report_sections.append("## ⚡ 并行执行阶段：数据收集与搜索")
+                for result in parallel_results:
+                    agent_type = self._identify_agent_type_from_id(result.agent_id)
+                    report_sections.append(f"### {agent_type.upper()}\n{result.response_content}\n")
+            
+            # 顺序执行结果
+            if sequential_results:
+                report_sections.append("## 🔄 顺序执行阶段：分析与报告")
+                for result in sequential_results:
+                    agent_type = self._identify_agent_type_from_id(result.agent_id)
+                    report_sections.append(f"### {agent_type.upper()}\n{result.response_content}\n")
+            
+            return execution_summary + "\n".join(report_sections)
+            
+        except Exception as e:
+            self.logger.error(f"Error integrating hybrid results: {str(e)}")
+            return f"❌ **结果整合失败**: {str(e)}"
+    
+    def _identify_agent_type_from_id(self, agent_id: str) -> str:
+        """从Agent ID识别Agent类型."""
+        if "data_collection" in agent_id:
+            return "data_collection"
+        elif "search" in agent_id:
+            return "search"
+        elif "analysis" in agent_id:
+            return "analysis"
+        elif "report" in agent_id:
+            return "report"
+        elif "coordinator" in agent_id:
+            return "coordinator"
+        else:
+            return "unknown"
+    
+    def _extract_shared_data_from_results(self, results: List[AgentResponse]) -> Dict[str, Any]:
+        """从Agent结果中提取共享数据."""
+        shared_data = {}
+        
+        try:
+            for result in results:
+                if result.metadata and "shared_data" in result.metadata:
+                    shared_data.update(result.metadata["shared_data"])
+                
+                # 从响应内容中提取结构化数据（如果有的话）
+                if hasattr(result, 'structured_data'):
+                    shared_data.update(result.structured_data)
+            
+            return shared_data
+            
+        except Exception as e:
+            self.logger.error(f"Error extracting shared data: {str(e)}")
+            return {}
+    
+    async def _synchronize_agent_data(self, workflow_context: Dict[str, Any], 
+                                    results: List[AgentResponse]) -> None:
+        """同步Agent间的数据."""
+        try:
+            # 提取共享数据
+            shared_data = self._extract_shared_data_from_results(results)
+            
+            # 更新工作流上下文
+            if "shared_data" not in workflow_context:
+                workflow_context["shared_data"] = {}
+            
+            workflow_context["shared_data"].update(shared_data)
+            
+            # 记录同步信息
+            self.logger.info(f"Synchronized {len(shared_data)} data items across agents")
+            
+        except Exception as e:
+            self.logger.error(f"Error synchronizing agent data: {str(e)}")
+    
+    def _estimate_task_duration(self, task_type: str, complexity_level: str) -> int:
+        """估算任务持续时间（秒）."""
+        base_durations = {
+            "quick_search": 30,
+            "trend_analysis": 60,
+            "competitive_analysis": 90,
+            "report_generation": 120,
+            "comprehensive_analysis": 180
+        }
+        
+        complexity_multipliers = {
+            "low": 0.8,
+            "medium": 1.0,
+            "high": 1.5
+        }
+        
+        base_duration = base_durations.get(task_type, 60)
+        multiplier = complexity_multipliers.get(complexity_level, 1.0)
+        
+        return int(base_duration * multiplier)
+    
+    async def _generate_patent_coordination_response(self, coordination_result: CollaborationResult,
+                                                   workflow_context: Dict[str, Any]) -> str:
+        """生成专利协调响应."""
+        try:
+            if not coordination_result.consensus_reached:
+                return f"❌ **专利协调失败**\n\n{coordination_result.final_result}"
+            
+            # 生成成功的协调响应
+            response_parts = []
+            
+            # 添加协调摘要
+            response_parts.append(f"""# ✅ 专利分析协调完成
+
+**协调ID**: {coordination_result.collaboration_id}
+**执行策略**: {workflow_context.get('execution_strategy', 'Unknown')}
+**参与Agent**: {len(coordination_result.participating_agents)}个
+**任务类型**: {workflow_context.get('task_type', 'Unknown')}
+**完成时间**: {datetime.now().isoformat()}
+
+---
+""")
+            
+            # 添加主要结果
+            response_parts.append(coordination_result.final_result)
+            
+            # 添加Agent执行统计
+            successful_agents = len([r for r in coordination_result.individual_responses if r.confidence > 0.0])
+            response_parts.append(f"""
+
+---
+
+## 📊 执行统计
+
+- **成功Agent**: {successful_agents}/{len(coordination_result.individual_responses)}
+- **平均置信度**: {sum(r.confidence for r in coordination_result.individual_responses) / len(coordination_result.individual_responses):.2f}
+- **解决方法**: {coordination_result.resolution_method}
+""")
+            
+            return "\n".join(response_parts)
+            
+        except Exception as e:
+            self.logger.error(f"Error generating coordination response: {str(e)}")
+            return f"❌ **响应生成失败**: {str(e)}"
+    
+    def _generate_patent_coordination_actions(self, coordination_result: CollaborationResult,
+                                            workflow_context: Dict[str, Any]) -> List[Action]:
+        """生成专利协调后续动作."""
+        actions = []
+        
+        try:
+            # 如果有报告生成，添加下载动作
+            if any("report" in r.agent_id.lower() for r in coordination_result.individual_responses):
+                actions.append(Action(
+                    action_type="download_report",
+                    description="下载专利分析报告",
+                    parameters={
+                        "coordination_id": coordination_result.collaboration_id,
+                        "format": "pdf"
+                    }
+                ))
+            
+            # 如果分析成功，添加深度分析选项
+            successful_analysis = any(
+                "analysis" in r.agent_id.lower() and r.confidence > 0.5 
+                for r in coordination_result.individual_responses
+            )
+            
+            if successful_analysis:
+                actions.append(Action(
+                    action_type="deep_analysis",
+                    description="进行更深度的专利分析",
+                    parameters={
+                        "base_coordination_id": coordination_result.collaboration_id
+                    }
+                ))
+            
+            # 添加重新执行选项
+            actions.append(Action(
+                action_type="retry_coordination",
+                description="重新执行专利分析协调",
+                parameters={
+                    "original_context": workflow_context
+                }
+            ))
+            
+        except Exception as e:
+            self.logger.error(f"Error generating coordination actions: {str(e)}")
+        
+        return actions
+    
+    async def _validate_config(self) -> bool:
+        """验证专利协调Agent配置."""
+        # 允许专利协调Agent类型
+        if self.agent_type != AgentType.PATENT_COORDINATOR:
+            self.logger.error(f"Invalid agent type for PatentCoordinatorAgent: {self.agent_type}")
+            return False
+        
+        # 检查推荐的能力
+        recommended_capabilities = ["专利工作流协调", "Agent调度", "结果整合"]
+        if not any(cap in self.config.capabilities for cap in recommended_capabilities):
+            self.logger.warning("PatentCoordinatorAgent missing recommended capabilities")
+        
+        return True

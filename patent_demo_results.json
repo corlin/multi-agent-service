@@ -1,6 +1,6 @@
 {
   "demo_info": {
-    "timestamp": "2025-09-10T19:41:32.316000",
+    "timestamp": "2025-09-10T20:07:04.656848",
     "total_scenarios": 4,
     "system_initialized": true
   },
@@ -59,7 +59,7 @@
         "description": "快速检索人工智能相关专利，适合初步了解技术发展"
       },
       "request": {
-        "request_id": "98d3cc7c-2b48-4960-8f54-b3b7925baa4f",
+        "request_id": "bd8ad83c-8b69-4ae3-b3e6-04bddd1c8cc2",
         "user_id": "demo_user",
         "content": "请进行quick_search，关键词：人工智能, 机器学习, 深度学习",
         "context": {
@@ -72,29 +72,42 @@
           "analysis_type": "quick_search",
           "demo_mode": true
         },
-        "timestamp": "2025-09-10T19:41:26.281147",
+        "timestamp": "2025-09-10T20:06:58.576715",
         "priority": "normal"
       },
       "response": {
-        "agent_id": "mock_patent_coordinator",
+        "agent_id": "demo_patent_coordinator",
         "agent_type": "patent_coordinator",
-        "content": "专利分析演示结果 - 人工智能专利快速检索\n\n关键词: 人工智能, 机器学习, 深度学习\n分析类型: quick_search\n\n模拟分析结果:\n1. 数据收集: 已收集相关专利数据 100 条\n2. 搜索增强: 已获取学术文献和网络信息\n3. 趋势分析: 该技术领域呈现上升趋势\n4. 竞争分析: 识别出主要竞争者 5 家\n5. 报告生成: 已生成完整分析报告\n\n注意: 这是演示模式的模拟结果，实际系统将提供真实的专利分析数据。",
-        "confidence": 0.85,
+        "content": "# ✅ 专利分析协调完成\n\n**协调ID**: bd5bcb30-322c-4276-b549-4fa02561fce3\n**执行策略**: hierarchical\n**参与Agent**: 5个\n**任务类型**: comprehensive_analysis\n**完成时间**: 2025-09-10T20:06:58.584715\n\n---\n\n# 🏗️ 专利分析分层执行结果\n\n**执行模式**: 分层执行\n**成功Agent数**: 4/4\n**执行层级**: 3层\n**工作流ID**: bd5bcb30-322c-4276-b549-4fa02561fce3\n\n---\n\n## 📊 第一层：数据收集与搜索\n### DATA_COLLECTION\n📋 **patent_data_collection_agent 降级响应**\n\n**Agent类型**: patent_data_collection\n**处理能力**: 专利数据收集, 多数据源集成, 数据清洗, 数据缓存\n**请求内容**: 请进行quick_search，关键词：人工智能, 机器学习, 深度学习...\n\n⚠️ **注意**: 由于真实Agent不可用，这是一个降级响应。\n系统已记录此问题，请稍后重试或联系技术支持。\n\n**建议**: 检查 patent_data_collection 的注册状态和健康状况。\n\n### SEARCH\n📋 **patent_search_agent 降级响应**\n\n**Agent类型**: patent_search\n**处理能力**: CNKI学术搜索, 博查AI搜索, 网页爬取, 搜索结果增强\n**请求内容**: 请进行quick_search，关键词：人工智能, 机器学习, 深度学习...\n\n⚠️ **注意**: 由于真实Agent不可用，这是一个降级响应。\n系统已记录此问题，请稍后重试或联系技术支持。\n\n**建议**: 检查 patent_search 的注册状态和健康状况。\n\n## 📈 第二层：分析处理\n📋 **patent_analysis_agent 降级响应**\n\n**Agent类型**: patent_analysis\n**处理能力**: 趋势分析, 技术分类, 竞争分析, 地域分析, 深度洞察\n**请求内容**: 请进行quick_search，关键词：人工智能, 机器学习, 深度学习...\n\n⚠️ **注意**: 由于真实Agent不可用，这是一个降级响应。\n系统已记录此问题，请稍后重试或联系技术支持。\n\n**建议**: 检查 patent_analysis 的注册状态和健康状况。\n\n## 📋 第三层：报告生成\n📋 **patent_report_agent 降级响应**\n\n**Agent类型**: patent_report\n**处理能力**: 报告生成, 图表制作, 模板渲染, 多格式导出\n**请求内容**: 请进行quick_search，关键词：人工智能, 机器学习, 深度学习...\n\n⚠️ **注意**: 由于真实Agent不可用，这是一个降级响应。\n系统已记录此问题，请稍后重试或联系技术支持。\n\n**建议**: 检查 patent_report 的注册状态和健康状况。\n\n\n\n---\n\n## 📊 执行统计\n\n- **成功Agent**: 4/4\n- **平均置信度**: 0.30\n- **解决方法**: hierarchical_coordination\n",
+        "confidence": 0.95,
         "collaboration_needed": false,
         "metadata": {
-          "workflow_type": "quick_search",
+          "workflow_type": "hierarchical",
           "required_agents": [
-            "patent_data_collection",
-            "patent_search",
-            "patent_analysis",
-            "patent_report"
+            "patent_data_collection_agent",
+            "patent_search_agent",
+            "patent_analysis_agent",
+            "patent_report_agent"
           ],
-          "coordination_id": "demo_人工智能专利快速检索",
-          "demo_mode": true
+          "task_analysis": {
+            "task_type": "comprehensive_analysis",
+            "complexity_level": "low",
+            "complexity_factors": {
+              "data_sources": 0,
+              "analysis_depth": 1,
+              "output_formats": 0,
+              "time_range": 0
+            },
+            "complexity_score": 1,
+            "estimated_duration": 144
+          },
+          "coordination_id": "bd5bcb30-322c-4276-b549-4fa02561fce3",
+          "patent_task_type": "comprehensive_analysis",
+          "processed_at": "2025-09-10T20:06:58.584715"
         }
       },
-      "execution_time": 0.000498,
-      "timestamp": "2025-09-10T19:41:26.281645",
+      "execution_time": 0.005,
+      "timestamp": "2025-09-10T20:06:58.585215",
       "success": true
     },
     {
@@ -109,7 +122,7 @@
         "description": "全面分析区块链技术专利，包括数据收集、搜索增强、深度分析和报告生成"
       },
       "request": {
-        "request_id": "3d5af05c-fb85-45cd-832b-fa28f6fb3b93",
+        "request_id": "60cf774b-7861-44fd-b5df-98d244939c41",
         "user_id": "demo_user",
         "content": "请进行comprehensive_analysis，关键词：区块链, 分布式账本, 智能合约",
         "context": {
@@ -122,29 +135,42 @@
           "analysis_type": "comprehensive_analysis",
           "demo_mode": true
         },
-        "timestamp": "2025-09-10T19:41:28.290730",
+        "timestamp": "2025-09-10T20:07:00.602259",
         "priority": "normal"
       },
       "response": {
-        "agent_id": "mock_patent_coordinator",
+        "agent_id": "demo_patent_coordinator",
         "agent_type": "patent_coordinator",
-        "content": "专利分析演示结果 - 区块链技术全面分析\n\n关键词: 区块链, 分布式账本, 智能合约\n分析类型: comprehensive_analysis\n\n模拟分析结果:\n1. 数据收集: 已收集相关专利数据 100 条\n2. 搜索增强: 已获取学术文献和网络信息\n3. 趋势分析: 该技术领域呈现上升趋势\n4. 竞争分析: 识别出主要竞争者 5 家\n5. 报告生成: 已生成完整分析报告\n\n注意: 这是演示模式的模拟结果，实际系统将提供真实的专利分析数据。",
-        "confidence": 0.85,
+        "content": "# ✅ 专利分析协调完成\n\n**协调ID**: 225881ad-bfbf-416a-9c7f-21037b1dba31\n**执行策略**: hierarchical\n**参与Agent**: 5个\n**任务类型**: comprehensive_analysis\n**完成时间**: 2025-09-10T20:07:00.621759\n\n---\n\n# 🏗️ 专利分析分层执行结果\n\n**执行模式**: 分层执行\n**成功Agent数**: 4/4\n**执行层级**: 3层\n**工作流ID**: 225881ad-bfbf-416a-9c7f-21037b1dba31\n\n---\n\n## 📊 第一层：数据收集与搜索\n### DATA_COLLECTION\n📋 **patent_data_collection_agent 降级响应**\n\n**Agent类型**: patent_data_collection\n**处理能力**: 专利数据收集, 多数据源集成, 数据清洗, 数据缓存\n**请求内容**: 请进行comprehensive_analysis，关键词：区块链, 分布式账本, 智能合约...\n\n⚠️ **注意**: 由于真实Agent不可用，这是一个降级响应。\n系统已记录此问题，请稍后重试或联系技术支持。\n\n**建议**: 检查 patent_data_collection 的注册状态和健康状况。\n\n### SEARCH\n📋 **patent_search_agent 降级响应**\n\n**Agent类型**: patent_search\n**处理能力**: CNKI学术搜索, 博查AI搜索, 网页爬取, 搜索结果增强\n**请求内容**: 请进行comprehensive_analysis，关键词：区块链, 分布式账本, 智能合约...\n\n⚠️ **注意**: 由于真实Agent不可用，这是一个降级响应。\n系统已记录此问题，请稍后重试或联系技术支持。\n\n**建议**: 检查 patent_search 的注册状态和健康状况。\n\n## 📈 第二层：分析处理\n📋 **patent_analysis_agent 降级响应**\n\n**Agent类型**: patent_analysis\n**处理能力**: 趋势分析, 技术分类, 竞争分析, 地域分析, 深度洞察\n**请求内容**: 请进行comprehensive_analysis，关键词：区块链, 分布式账本, 智能合约...\n\n⚠️ **注意**: 由于真实Agent不可用，这是一个降级响应。\n系统已记录此问题，请稍后重试或联系技术支持。\n\n**建议**: 检查 patent_analysis 的注册状态和健康状况。\n\n## 📋 第三层：报告生成\n📋 **patent_report_agent 降级响应**\n\n**Agent类型**: patent_report\n**处理能力**: 报告生成, 图表制作, 模板渲染, 多格式导出\n**请求内容**: 请进行comprehensive_analysis，关键词：区块链, 分布式账本, 智能合约...\n\n⚠️ **注意**: 由于真实Agent不可用，这是一个降级响应。\n系统已记录此问题，请稍后重试或联系技术支持。\n\n**建议**: 检查 patent_report 的注册状态和健康状况。\n\n\n\n---\n\n## 📊 执行统计\n\n- **成功Agent**: 4/4\n- **平均置信度**: 0.30\n- **解决方法**: hierarchical_coordination\n",
+        "confidence": 0.95,
         "collaboration_needed": false,
         "metadata": {
-          "workflow_type": "comprehensive_analysis",
+          "workflow_type": "hierarchical",
           "required_agents": [
-            "patent_data_collection",
-            "patent_search",
-            "patent_analysis",
-            "patent_report"
+            "patent_data_collection_agent",
+            "patent_search_agent",
+            "patent_analysis_agent",
+            "patent_report_agent"
           ],
-          "coordination_id": "demo_区块链技术全面分析",
-          "demo_mode": true
+          "task_analysis": {
+            "task_type": "comprehensive_analysis",
+            "complexity_level": "low",
+            "complexity_factors": {
+              "data_sources": 0,
+              "analysis_depth": 0,
+              "output_formats": 0,
+              "time_range": 0
+            },
+            "complexity_score": 0,
+            "estimated_duration": 144
+          },
+          "coordination_id": "225881ad-bfbf-416a-9c7f-21037b1dba31",
+          "patent_task_type": "comprehensive_analysis",
+          "processed_at": "2025-09-10T20:07:00.622260"
         }
       },
-      "execution_time": 0.0,
-      "timestamp": "2025-09-10T19:41:28.291733",
+      "execution_time": 0.021499,
+      "timestamp": "2025-09-10T20:07:00.623758",
       "success": true
     },
     {
@@ -159,7 +185,7 @@
         "description": "分析5G通信技术的发展趋势和技术演进"
       },
       "request": {
-        "request_id": "fd2791ce-f50e-4fa8-aedc-a7edd47b0b19",
+        "request_id": "f841bc77-ac01-4447-9905-7a3a48ca103a",
         "user_id": "demo_user",
         "content": "请进行trend_analysis，关键词：5G, 通信技术, 无线网络",
         "context": {
@@ -172,30 +198,23 @@
           "analysis_type": "trend_analysis",
           "demo_mode": true
         },
-        "timestamp": "2025-09-10T19:41:30.300383",
+        "timestamp": "2025-09-10T20:07:02.635014",
         "priority": "normal"
       },
       "response": {
-        "agent_id": "mock_patent_coordinator",
+        "agent_id": "demo_patent_coordinator",
         "agent_type": "patent_coordinator",
-        "content": "专利分析演示结果 - 5G通信技术趋势分析\n\n关键词: 5G, 通信技术, 无线网络\n分析类型: trend_analysis\n\n模拟分析结果:\n1. 数据收集: 已收集相关专利数据 100 条\n2. 搜索增强: 已获取学术文献和网络信息\n3. 趋势分析: 该技术领域呈现上升趋势\n4. 竞争分析: 识别出主要竞争者 5 家\n5. 报告生成: 已生成完整分析报告\n\n注意: 这是演示模式的模拟结果，实际系统将提供真实的专利分析数据。",
-        "confidence": 0.85,
-        "collaboration_needed": false,
+        "content": "感谢您的咨询。虽然这个问题可能不完全在我的专业领域内，但我会尽力为您提供帮助。如需更专业的服务，建议您联系相应的专业部门。",
+        "confidence": 0.0,
+        "collaboration_needed": true,
         "metadata": {
-          "workflow_type": "trend_analysis",
-          "required_agents": [
-            "patent_data_collection",
-            "patent_search",
-            "patent_analysis",
-            "patent_report"
-          ],
-          "coordination_id": "demo_5G通信技术趋势分析",
-          "demo_mode": true
+          "low_confidence_fallback": true,
+          "original_confidence": 0.0
         }
       },
-      "execution_time": 0.000498,
-      "timestamp": "2025-09-10T19:41:30.300881",
-      "success": true
+      "execution_time": 0.000999,
+      "timestamp": "2025-09-10T20:07:02.636013",
+      "success": false
     },
     {
       "scenario": {
@@ -209,7 +228,7 @@
         "description": "分析新能源汽车领域的竞争格局和主要参与者"
       },
       "request": {
-        "request_id": "0e1f2422-d92b-4d4b-b220-feda095d15c0",
+        "request_id": "03eb50ff-20c7-4d75-82e4-80a6e4c13b6c",
         "user_id": "demo_user",
         "content": "请进行competitive_analysis，关键词：新能源汽车, 电动汽车, 电池技术",
         "context": {
@@ -222,35 +241,28 @@
           "analysis_type": "competitive_analysis",
           "demo_mode": true
         },
-        "timestamp": "2025-09-10T19:41:32.306506",
+        "timestamp": "2025-09-10T20:07:04.652841",
         "priority": "normal"
       },
       "response": {
-        "agent_id": "mock_patent_coordinator",
+        "agent_id": "demo_patent_coordinator",
         "agent_type": "patent_coordinator",
-        "content": "专利分析演示结果 - 新能源汽车竞争分析\n\n关键词: 新能源汽车, 电动汽车, 电池技术\n分析类型: competitive_analysis\n\n模拟分析结果:\n1. 数据收集: 已收集相关专利数据 100 条\n2. 搜索增强: 已获取学术文献和网络信息\n3. 趋势分析: 该技术领域呈现上升趋势\n4. 竞争分析: 识别出主要竞争者 5 家\n5. 报告生成: 已生成完整分析报告\n\n注意: 这是演示模式的模拟结果，实际系统将提供真实的专利分析数据。",
-        "confidence": 0.85,
-        "collaboration_needed": false,
+        "content": "感谢您的咨询。虽然这个问题可能不完全在我的专业领域内，但我会尽力为您提供帮助。如需更专业的服务，建议您联系相应的专业部门。",
+        "confidence": 0.0,
+        "collaboration_needed": true,
         "metadata": {
-          "workflow_type": "competitive_analysis",
-          "required_agents": [
-            "patent_data_collection",
-            "patent_search",
-            "patent_analysis",
-            "patent_report"
-          ],
-          "coordination_id": "demo_新能源汽车竞争分析",
-          "demo_mode": true
+          "low_confidence_fallback": true,
+          "original_confidence": 0.0
         }
       },
-      "execution_time": 0.001005,
-      "timestamp": "2025-09-10T19:41:32.309513",
-      "success": true
+      "execution_time": 0.003006,
+      "timestamp": "2025-09-10T20:07:04.655847",
+      "success": false
     }
   ],
   "summary": {
     "total_count": 4,
-    "successful_count": 4,
-    "failed_count": 0
+    "successful_count": 2,
+    "failed_count": 2
   }
 }

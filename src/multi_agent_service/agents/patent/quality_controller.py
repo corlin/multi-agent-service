@@ -677,7 +677,749 @@ class AnalysisQualityController:
             
         except Exception as e:
             self.logger.error(f"Error checking conclusion data consistency: {str(e)}")
+            return 0.5
+    
+    async def _check_temporal_stability(self, analysis_results: Dict[str, Any], result_id: str) -> Dict[str, Any]:
+        """检查时间稳定性."""
+        try:
+            stability_checks = []
+            
+            # 1. 历史结果对比
+            historical_comparison = await self._compare_with_historical_results(result_id, analysis_results)
+            stability_checks.append(("historical_comparison", historical_comparison))
+            
+            # 2. 结果一致性检查
+            result_consistency = self._check_result_temporal_consistency(analysis_results)
+            stability_checks.append(("result_consistency", result_consistency))
+            
+            # 3. 趋势稳定性检查
+            trend_stability = self._check_trend_stability(analysis_results)
+            stability_checks.append(("trend_stability", trend_stability))
+            
+            # 计算总体时间稳定性
+            overall_stability = sum(score for _, score in stability_checks) / len(stability_checks)
+            
+            return {
+                "overall_stability": overall_stability,
+                "stability_checks": dict(stability_checks),
+                "status": "pass" if overall_stability >= 0.7 else "fail"
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error checking temporal stability: {str(e)}")
+            return {"overall_stability": 0.0, "error": str(e)}
+    
+    async def _compare_with_historical_results(self, result_id: str, current_results: Dict[str, Any]) -> float:
+        """与历史结果对比."""
+        try:
+            # 获取历史版本
+            historical_versions = self.version_history.get(result_id, [])
+            
+            if not historical_versions:
+                return 0.8  # 没有历史数据，给予中等评分
+            
+            # 与最近的历史版本对比
+            latest_version = historical_versions[-1]
+            historical_results = latest_version.get("analysis_results", {})
+            
+            # 计算结果相似度
+            similarity_score = self._calculate_result_similarity(current_results, historical_results)
+            
+            return similarity_score
+            
+        except Exception as e:
+            self.logger.error(f"Error comparing with historical results: {str(e)}")
+            return 0.5
+    
+    def _calculate_result_similarity(self, current_results: Dict[str, Any], historical_results: Dict[str, Any]) -> float:
+        """计算结果相似度."""
+        try:
+            similarity_scores = []
+            
+            # 比较趋势分析结果
+            if "trend" in current_results and "trend" in historical_results:
+                current_trend = current_results["trend"]
+                historical_trend = historical_results["trend"]
+                
+                # 比较趋势方向
+                current_direction = current_trend.get("trend_direction", "stable")
+                historical_direction = historical_trend.get("trend_direction", "stable")
+                
+                if current_direction == historical_direction:
+                    similarity_scores.append(1.0)
+                else:
+                    similarity_scores.append(0.5)
+                
+                # 比较增长率
+                current_growth = current_trend.get("growth_rates", {})
+                historical_growth = historical_trend.get("growth_rates", {})
+                
+                if current_growth and historical_growth:
+                    # 比较最近几年的增长率
+                    common_years = set(current_growth.keys()) & set(historical_growth.keys())
+                    if common_years:
+                        growth_similarities = []
+                        for year in common_years:
+                            curr_rate = current_growth[year]
+                            hist_rate = historical_growth[year]
+                            
+                            # 计算增长率差异
+                            if abs(curr_rate - hist_rate) < 5:  # 差异小于5%
+                                growth_similarities.append(1.0)
+                            elif abs(curr_rate - hist_rate) < 15:  # 差异小于15%
+                                growth_similarities.append(0.7)
+                            else:
+                                growth_similarities.append(0.3)
+                        
+                        if growth_similarities:
+                            similarity_scores.append(sum(growth_similarities) / len(growth_similarities))
+            
+            # 比较竞争分析结果
+            if "competition" in current_results and "competition" in historical_results:
+                current_comp = current_results["competition"]
+                historical_comp = historical_results["competition"]
+                
+                # 比较市场集中度
+                current_concentration = current_comp.get("market_concentration", 0.5)
+                historical_concentration = historical_comp.get("market_concentration", 0.5)
+                
+                concentration_diff = abs(current_concentration - historical_concentration)
+                if concentration_diff < 0.1:
+                    similarity_scores.append(1.0)
+                elif concentration_diff < 0.2:
+                    similarity_scores.append(0.7)
+                else:
+                    similarity_scores.append(0.4)
+            
+            return sum(similarity_scores) / len(similarity_scores) if similarity_scores else 0.5
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating result similarity: {str(e)}")
+            return 0.5
+    
+    def _check_result_temporal_consistency(self, analysis_results: Dict[str, Any]) -> float:
+        """检查结果时间一致性."""
+        try:
+            consistency_score = 1.0
+            
+            # 检查趋势分析的时间一致性
+            if "trend" in analysis_results:
+                trend_data = analysis_results["trend"]
+                yearly_counts = trend_data.get("yearly_counts", {})
+                
+                if yearly_counts:
+                    years = sorted(yearly_counts.keys())
+                    counts = [yearly_counts[year] for year in years]
+                    
+                    # 检查是否有异常的年度跳跃
+                    for i in range(1, len(counts)):
+                        change_rate = abs(counts[i] - counts[i-1]) / max(counts[i-1], 1)
+                        if change_rate > 2.0:  # 变化超过200%
+                            consistency_score -= 0.1
+            
+            return max(0.0, consistency_score)
+            
+        except Exception as e:
+            self.logger.error(f"Error checking result temporal consistency: {str(e)}")
             return 0.7
+    
+    def _check_trend_stability(self, analysis_results: Dict[str, Any]) -> float:
+        """检查趋势稳定性."""
+        try:
+            if "trend" not in analysis_results:
+                return 0.5
+            
+            trend_data = analysis_results["trend"]
+            
+            # 检查趋势预测的稳定性
+            if "prediction" in trend_data:
+                prediction_data = trend_data["prediction"]
+                confidence_assessment = prediction_data.get("confidence_assessment", {})
+                
+                overall_confidence = confidence_assessment.get("overall_confidence", 0.5)
+                return overall_confidence
+            
+            # 检查趋势方向的稳定性
+            trend_direction = trend_data.get("trend_direction", "stable")
+            trend_strength = trend_data.get("trend_strength", {})
+            
+            confidence = trend_strength.get("confidence", 0.5)
+            return confidence
+            
+        except Exception as e:
+            self.logger.error(f"Error checking trend stability: {str(e)}")
+            return 0.5
+    
+    async def _detect_anomalies(self, analysis_results: Dict[str, Any]) -> Dict[str, Any]:
+        """检测异常."""
+        try:
+            anomalies_detected = []
+            
+            # 1. 数值异常检测
+            numerical_anomalies = self._detect_numerical_anomalies(analysis_results)
+            anomalies_detected.extend(numerical_anomalies)
+            
+            # 2. 逻辑异常检测
+            logical_anomalies = self._detect_logical_anomalies(analysis_results)
+            anomalies_detected.extend(logical_anomalies)
+            
+            # 3. 统计异常检测
+            statistical_anomalies = self._detect_statistical_anomalies(analysis_results)
+            anomalies_detected.extend(statistical_anomalies)
+            
+            # 4. 模式异常检测
+            pattern_anomalies = self._detect_pattern_anomalies(analysis_results)
+            anomalies_detected.extend(pattern_anomalies)
+            
+            # 异常严重程度评估
+            anomaly_severity = self._assess_anomaly_severity(anomalies_detected)
+            
+            return {
+                "anomalies_detected": anomalies_detected,
+                "anomaly_count": len(anomalies_detected),
+                "anomaly_severity": anomaly_severity,
+                "has_critical_anomalies": any(a.get("severity") == "critical" for a in anomalies_detected),
+                "anomaly_summary": self._generate_anomaly_summary(anomalies_detected)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error detecting anomalies: {str(e)}")
+            return {"anomaly_count": 0, "error": str(e)}
+    
+    def _detect_numerical_anomalies(self, analysis_results: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """检测数值异常."""
+        anomalies = []
+        
+        try:
+            # 检查趋势分析中的数值异常
+            if "trend" in analysis_results:
+                trend_data = analysis_results["trend"]
+                yearly_counts = trend_data.get("yearly_counts", {})
+                
+                if yearly_counts:
+                    counts = list(yearly_counts.values())
+                    mean_count = sum(counts) / len(counts)
+                    
+                    # 检查极端值
+                    for year, count in yearly_counts.items():
+                        if count > mean_count * 5:  # 超过平均值5倍
+                            anomalies.append({
+                                "type": "numerical",
+                                "module": "trend",
+                                "description": f"{year}年专利数量({count})异常偏高",
+                                "severity": "warning",
+                                "value": count,
+                                "expected_range": f"0-{mean_count * 3:.0f}"
+                            })
+                        elif count == 0 and mean_count > 5:  # 平均值较高但某年为0
+                            anomalies.append({
+                                "type": "numerical",
+                                "module": "trend",
+                                "description": f"{year}年专利数量为0，可能存在数据缺失",
+                                "severity": "warning",
+                                "value": count,
+                                "expected_range": f"1-{mean_count * 2:.0f}"
+                            })
+            
+            # 检查竞争分析中的数值异常
+            if "competition" in analysis_results:
+                comp_data = analysis_results["competition"]
+                market_concentration = comp_data.get("market_concentration", 0.5)
+                
+                if market_concentration > 1.0 or market_concentration < 0.0:
+                    anomalies.append({
+                        "type": "numerical",
+                        "module": "competition",
+                        "description": f"市场集中度({market_concentration})超出正常范围[0,1]",
+                        "severity": "critical",
+                        "value": market_concentration,
+                        "expected_range": "0.0-1.0"
+                    })
+            
+        except Exception as e:
+            self.logger.error(f"Error detecting numerical anomalies: {str(e)}")
+        
+        return anomalies
+    
+    def _detect_logical_anomalies(self, analysis_results: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """检测逻辑异常."""
+        anomalies = []
+        
+        try:
+            # 检查趋势与竞争的逻辑一致性
+            if "trend" in analysis_results and "competition" in analysis_results:
+                trend_data = analysis_results["trend"]
+                comp_data = analysis_results["competition"]
+                
+                trend_direction = trend_data.get("trend_direction", "stable")
+                market_concentration = comp_data.get("market_concentration", 0.5)
+                
+                # 逻辑异常：快速增长但高度集中
+                if trend_direction in ["rapidly_increasing", "increasing"] and market_concentration > 0.8:
+                    anomalies.append({
+                        "type": "logical",
+                        "modules": ["trend", "competition"],
+                        "description": "专利快速增长但市场高度集中，存在逻辑矛盾",
+                        "severity": "warning",
+                        "details": f"趋势: {trend_direction}, 集中度: {market_concentration:.2f}"
+                    })
+                
+                # 逻辑异常：下降趋势但竞争激烈
+                if trend_direction == "decreasing" and market_concentration < 0.2:
+                    anomalies.append({
+                        "type": "logical",
+                        "modules": ["trend", "competition"],
+                        "description": "专利申请下降但竞争激烈，可能存在数据问题",
+                        "severity": "warning",
+                        "details": f"趋势: {trend_direction}, 集中度: {market_concentration:.2f}"
+                    })
+            
+        except Exception as e:
+            self.logger.error(f"Error detecting logical anomalies: {str(e)}")
+        
+        return anomalies
+    
+    def _detect_statistical_anomalies(self, analysis_results: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """检测统计异常."""
+        anomalies = []
+        
+        try:
+            # 检查数据分布异常
+            if "trend" in analysis_results:
+                trend_data = analysis_results["trend"]
+                yearly_counts = trend_data.get("yearly_counts", {})
+                
+                if len(yearly_counts) >= 5:
+                    counts = list(yearly_counts.values())
+                    
+                    # 计算变异系数
+                    mean_count = sum(counts) / len(counts)
+                    variance = sum((c - mean_count) ** 2 for c in counts) / len(counts)
+                    cv = (variance ** 0.5) / mean_count if mean_count > 0 else 0
+                    
+                    # 变异系数过高表示数据不稳定
+                    if cv > 1.0:
+                        anomalies.append({
+                            "type": "statistical",
+                            "module": "trend",
+                            "description": f"年度专利数量变异系数过高({cv:.2f})，数据波动异常",
+                            "severity": "warning",
+                            "metric": "coefficient_of_variation",
+                            "value": cv
+                        })
+                    
+                    # 检查偏度异常
+                    skewness = self._calculate_skewness(counts)
+                    if abs(skewness) > 2.0:
+                        anomalies.append({
+                            "type": "statistical",
+                            "module": "trend",
+                            "description": f"数据分布严重偏斜(偏度: {skewness:.2f})",
+                            "severity": "warning",
+                            "metric": "skewness",
+                            "value": skewness
+                        })
+            
+        except Exception as e:
+            self.logger.error(f"Error detecting statistical anomalies: {str(e)}")
+        
+        return anomalies
+    
+    def _calculate_skewness(self, data: List[float]) -> float:
+        """计算偏度."""
+        try:
+            if len(data) < 3:
+                return 0.0
+            
+            n = len(data)
+            mean = sum(data) / n
+            variance = sum((x - mean) ** 2 for x in data) / n
+            std_dev = variance ** 0.5
+            
+            if std_dev == 0:
+                return 0.0
+            
+            skewness = sum((x - mean) ** 3 for x in data) / (n * std_dev ** 3)
+            return skewness
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating skewness: {str(e)}")
+            return 0.0
+    
+    def _detect_pattern_anomalies(self, analysis_results: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """检测模式异常."""
+        anomalies = []
+        
+        try:
+            # 检查缺失的预期模式
+            expected_modules = ["trend", "competition", "technology"]
+            missing_modules = []
+            
+            for module in expected_modules:
+                if module not in analysis_results or not analysis_results[module].get("success", False):
+                    missing_modules.append(module)
+            
+            if missing_modules:
+                anomalies.append({
+                    "type": "pattern",
+                    "description": f"缺失预期的分析模块: {', '.join(missing_modules)}",
+                    "severity": "warning",
+                    "missing_modules": missing_modules
+                })
+            
+            # 检查空结果模式
+            for module_name, module_data in analysis_results.items():
+                if isinstance(module_data, dict):
+                    if not module_data or len(module_data) == 1 and "success" in module_data:
+                        anomalies.append({
+                            "type": "pattern",
+                            "module": module_name,
+                            "description": f"{module_name}模块返回空结果",
+                            "severity": "warning"
+                        })
+            
+        except Exception as e:
+            self.logger.error(f"Error detecting pattern anomalies: {str(e)}")
+        
+        return anomalies
+    
+    def _assess_anomaly_severity(self, anomalies: List[Dict[str, Any]]) -> str:
+        """评估异常严重程度."""
+        if not anomalies:
+            return "none"
+        
+        critical_count = sum(1 for a in anomalies if a.get("severity") == "critical")
+        warning_count = sum(1 for a in anomalies if a.get("severity") == "warning")
+        
+        if critical_count > 0:
+            return "critical"
+        elif warning_count > 3:
+            return "high"
+        elif warning_count > 1:
+            return "medium"
+        else:
+            return "low"
+    
+    def _generate_anomaly_summary(self, anomalies: List[Dict[str, Any]]) -> str:
+        """生成异常总结."""
+        if not anomalies:
+            return "未检测到异常"
+        
+        anomaly_types = defaultdict(int)
+        for anomaly in anomalies:
+            anomaly_types[anomaly.get("type", "unknown")] += 1
+        
+        summary_parts = []
+        for anomaly_type, count in anomaly_types.items():
+            summary_parts.append(f"{anomaly_type}异常{count}个")
+        
+        return f"检测到{len(anomalies)}个异常：" + "，".join(summary_parts)
+    
+    async def _calculate_overall_quality(self, validation_results: Dict[str, Any]) -> float:
+        """计算总体质量评分."""
+        try:
+            quality_scores = {}
+            
+            # 提取各维度评分
+            completeness_result = validation_results.get("completeness", {})
+            quality_scores["data_completeness"] = completeness_result.get("overall_completeness", 0.5)
+            
+            consistency_result = validation_results.get("consistency", {})
+            quality_scores["result_consistency"] = consistency_result.get("overall_consistency", 0.5)
+            
+            statistical_result = validation_results.get("statistical_validity", {})
+            quality_scores["statistical_validity"] = statistical_result.get("overall_validity", 0.5)
+            
+            coherence_result = validation_results.get("logical_coherence", {})
+            quality_scores["logical_coherence"] = coherence_result.get("overall_coherence", 0.5)
+            
+            stability_result = validation_results.get("temporal_stability", {})
+            quality_scores["temporal_stability"] = stability_result.get("overall_stability", 0.5)
+            
+            # 加权计算总体质量
+            weighted_score = 0.0
+            for dimension, score in quality_scores.items():
+                weight = self.quality_weights.get(dimension, 0.2)
+                weighted_score += score * weight
+            
+            # 异常检测扣分
+            if "anomaly_detection" in validation_results:
+                anomaly_result = validation_results["anomaly_detection"]
+                anomaly_severity = anomaly_result.get("anomaly_severity", "none")
+                
+                if anomaly_severity == "critical":
+                    weighted_score *= 0.7  # 严重异常扣30%
+                elif anomaly_severity == "high":
+                    weighted_score *= 0.85  # 高异常扣15%
+                elif anomaly_severity == "medium":
+                    weighted_score *= 0.95  # 中等异常扣5%
+            
+            return min(max(weighted_score, 0.0), 1.0)  # 确保在[0,1]范围内
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating overall quality: {str(e)}")
+            return 0.5
+    
+    async def _generate_quality_report(self, validation_results: Dict[str, Any], overall_quality: float) -> Dict[str, Any]:
+        """生成质量报告."""
+        try:
+            # 质量等级
+            quality_grade = self._determine_quality_grade(overall_quality)
+            
+            # 质量状态
+            quality_status = "pass" if overall_quality >= self.quality_config["confidence_threshold"] else "fail"
+            
+            # 问题总结
+            issues_summary = self._summarize_quality_issues(validation_results)
+            
+            # 改进建议
+            improvement_suggestions = self._generate_improvement_suggestions(validation_results, overall_quality)
+            
+            # 质量指标详情
+            quality_metrics = self._extract_quality_metrics(validation_results)
+            
+            return {
+                "overall_quality": overall_quality,
+                "quality_grade": quality_grade,
+                "quality_status": quality_status,
+                "validation_timestamp": datetime.now().isoformat(),
+                "quality_metrics": quality_metrics,
+                "validation_details": validation_results,
+                "issues_summary": issues_summary,
+                "improvement_suggestions": improvement_suggestions,
+                "quality_threshold": self.quality_config["confidence_threshold"]
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error generating quality report: {str(e)}")
+            return {
+                "overall_quality": 0.0,
+                "quality_status": "error",
+                "error": str(e),
+                "validation_timestamp": datetime.now().isoformat()
+            }
+    
+    def _determine_quality_grade(self, overall_quality: float) -> str:
+        """确定质量等级."""
+        if overall_quality >= 0.9:
+            return "A"  # 优秀
+        elif overall_quality >= 0.8:
+            return "B"  # 良好
+        elif overall_quality >= 0.7:
+            return "C"  # 合格
+        elif overall_quality >= 0.6:
+            return "D"  # 需改进
+        else:
+            return "F"  # 不合格
+    
+    def _summarize_quality_issues(self, validation_results: Dict[str, Any]) -> List[str]:
+        """总结质量问题."""
+        issues = []
+        
+        # 数据完整性问题
+        completeness_result = validation_results.get("completeness", {})
+        if completeness_result.get("status") == "fail":
+            issues.append("数据完整性不足")
+        
+        # 结果一致性问题
+        consistency_result = validation_results.get("consistency", {})
+        if consistency_result.get("status") == "fail":
+            issues.append("结果一致性存在问题")
+        
+        # 统计有效性问题
+        statistical_result = validation_results.get("statistical_validity", {})
+        if statistical_result.get("status") == "fail":
+            issues.append("统计有效性不足")
+        
+        # 逻辑连贯性问题
+        coherence_result = validation_results.get("logical_coherence", {})
+        if coherence_result.get("status") == "fail":
+            issues.append("逻辑连贯性存在缺陷")
+        
+        # 时间稳定性问题
+        stability_result = validation_results.get("temporal_stability", {})
+        if stability_result.get("status") == "fail":
+            issues.append("时间稳定性不佳")
+        
+        # 异常检测问题
+        anomaly_result = validation_results.get("anomaly_detection", {})
+        if anomaly_result.get("has_critical_anomalies", False):
+            issues.append("检测到严重异常")
+        
+        return issues
+    
+    def _generate_improvement_suggestions(self, validation_results: Dict[str, Any], overall_quality: float) -> List[str]:
+        """生成改进建议."""
+        suggestions = []
+        
+        # 基于质量评分的建议
+        if overall_quality < 0.7:
+            suggestions.append("建议增加数据量或改进数据质量")
+            suggestions.append("检查分析算法的参数设置")
+        
+        # 基于具体问题的建议
+        completeness_result = validation_results.get("completeness", {})
+        if completeness_result.get("overall_completeness", 1.0) < 0.8:
+            suggestions.append("补充缺失的分析模块或数据字段")
+        
+        consistency_result = validation_results.get("consistency", {})
+        if consistency_result.get("overall_consistency", 1.0) < 0.8:
+            suggestions.append("检查数据源的一致性，确保分析基于相同的数据集")
+        
+        statistical_result = validation_results.get("statistical_validity", {})
+        if statistical_result.get("overall_validity", 1.0) < 0.7:
+            suggestions.append("增加样本量或改进统计分析方法")
+        
+        # 基于异常检测的建议
+        anomaly_result = validation_results.get("anomaly_detection", {})
+        if anomaly_result.get("anomaly_count", 0) > 0:
+            suggestions.append("调查并处理检测到的异常数据点")
+        
+        return suggestions[:5]  # 返回前5个建议
+    
+    def _extract_quality_metrics(self, validation_results: Dict[str, Any]) -> Dict[str, float]:
+        """提取质量指标."""
+        metrics = {}
+        
+        completeness_result = validation_results.get("completeness", {})
+        metrics["completeness_score"] = completeness_result.get("overall_completeness", 0.0)
+        
+        consistency_result = validation_results.get("consistency", {})
+        metrics["consistency_score"] = consistency_result.get("overall_consistency", 0.0)
+        
+        statistical_result = validation_results.get("statistical_validity", {})
+        metrics["statistical_validity_score"] = statistical_result.get("overall_validity", 0.0)
+        
+        coherence_result = validation_results.get("logical_coherence", {})
+        metrics["logical_coherence_score"] = coherence_result.get("overall_coherence", 0.0)
+        
+        stability_result = validation_results.get("temporal_stability", {})
+        metrics["temporal_stability_score"] = stability_result.get("overall_stability", 0.0)
+        
+        return metrics
+    
+    async def _manage_result_version(self, result_id: str, analysis_results: Dict[str, Any], quality_report: Dict[str, Any]):
+        """管理结果版本."""
+        try:
+            version_info = {
+                "version_id": f"{result_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                "timestamp": datetime.now().isoformat(),
+                "analysis_results": analysis_results,
+                "quality_report": quality_report,
+                "quality_score": quality_report.get("overall_quality", 0.0)
+            }
+            
+            # 添加到版本历史
+            self.version_history[result_id].append(version_info)
+            
+            # 清理过期版本
+            await self._cleanup_expired_versions(result_id)
+            
+        except Exception as e:
+            self.logger.error(f"Error managing result version: {str(e)}")
+    
+    async def _cleanup_expired_versions(self, result_id: str):
+        """清理过期版本."""
+        try:
+            versions = self.version_history.get(result_id, [])
+            
+            if not versions:
+                return
+            
+            # 计算过期时间
+            expiry_date = datetime.now() - timedelta(days=self.quality_config["version_retention_days"])
+            
+            # 过滤掉过期版本
+            valid_versions = []
+            for version in versions:
+                version_time = datetime.fromisoformat(version["timestamp"])
+                if version_time > expiry_date:
+                    valid_versions.append(version)
+            
+            # 至少保留最新的一个版本
+            if not valid_versions and versions:
+                valid_versions = [versions[-1]]
+            
+            self.version_history[result_id] = valid_versions
+            
+        except Exception as e:
+            self.logger.error(f"Error cleaning up expired versions: {str(e)}")
+    
+    async def _cache_validation_results(self, result_id: str, quality_report: Dict[str, Any]):
+        """缓存验证结果."""
+        try:
+            cache_entry = {
+                "validation_result": quality_report,
+                "cache_timestamp": datetime.now().timestamp()
+            }
+            
+            self.result_cache[result_id] = cache_entry
+            
+            # 清理过期缓存
+            await self._cleanup_expired_cache()
+            
+        except Exception as e:
+            self.logger.error(f"Error caching validation results: {str(e)}")
+    
+    async def _cleanup_expired_cache(self):
+        """清理过期缓存."""
+        try:
+            current_time = datetime.now().timestamp()
+            expired_keys = []
+            
+            for result_id, cache_entry in self.result_cache.items():
+                cache_time = cache_entry.get("cache_timestamp", 0)
+                if current_time - cache_time > 3600:  # 1小时过期
+                    expired_keys.append(result_id)
+            
+            for key in expired_keys:
+                del self.result_cache[key]
+                
+        except Exception as e:
+            self.logger.error(f"Error cleaning up expired cache: {str(e)}")
+    
+    async def _update_performance_metrics(self, processing_time: float, quality_score: float):
+        """更新性能指标."""
+        try:
+            self.performance_metrics["validation_count"] += 1
+            
+            # 更新平均验证时间
+            current_avg = self.performance_metrics["average_validation_time"]
+            count = self.performance_metrics["validation_count"]
+            new_avg = ((current_avg * (count - 1)) + processing_time) / count
+            self.performance_metrics["average_validation_time"] = new_avg
+            
+            # 更新质量通过率
+            if quality_score >= self.quality_config["confidence_threshold"]:
+                pass_count = self.performance_metrics["quality_pass_rate"] * (count - 1) + 1
+            else:
+                pass_count = self.performance_metrics["quality_pass_rate"] * (count - 1)
+            
+            self.performance_metrics["quality_pass_rate"] = pass_count / count
+            
+        except Exception as e:
+            self.logger.error(f"Error updating performance metrics: {str(e)}")
+    
+    def get_performance_metrics(self) -> Dict[str, Any]:
+        """获取性能指标."""
+        return self.performance_metrics.copy()
+    
+    def get_version_history(self, result_id: str) -> List[Dict[str, Any]]:
+        """获取版本历史."""
+        return self.version_history.get(result_id, []).copy()
+    
+    def clear_cache(self):
+        """清空缓存."""
+        self.result_cache.clear()
+        self.logger.info("Quality controller cache cleared")
+    
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """获取缓存统计."""
+        return {
+            "cache_size": len(self.result_cache),
+            "version_history_size": sum(len(versions) for versions in self.version_history.values()),
+            "total_result_ids": len(self.version_history)
+        }
     
     async def _check_temporal_stability(self, analysis_results: Dict[str, Any], result_id: str) -> Dict[str, Any]:
         """检查时间稳定性."""

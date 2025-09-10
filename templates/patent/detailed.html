@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+
+{% block title %}详细专利分析报告{% endblock %}
+
+{% block header_title %}详细专利分析报告{% endblock %}
+
+{% block extra_css %}
+.detailed-section {
+    background: #f9f9f9;
+    padding: 25px;
+    margin: 25px 0;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+.data-highlight {
+    background: #e3f2fd;
+    padding: 15px;
+    border-left: 4px solid #2196f3;
+    margin: 15px 0;
+    border-radius: 4px;
+}
+.metric-box {
+    display: inline-block;
+    background: #fff;
+    padding: 15px;
+    margin: 10px;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+    min-width: 120px;
+}
+.metric-value {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #007acc;
+}
+.metric-label {
+    font-size: 0.9em;
+    color: #666;
+    margin-top: 5px;
+}
+.analysis-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 20px 0;
+}
+.analysis-card {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.trend-indicator {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+.trend-up { background: #e8f5e8; color: #2e7d32; }
+.trend-down { background: #ffebee; color: #c62828; }
+.trend-stable { background: #f3e5f5; color: #7b1fa2; }
+{% endblock %}
+
+{% block content %}
+<!-- 执行摘要 -->
+{% if content.summary %}
+<div class="detailed-section">
+    <h2>📋 执行摘要</h2>
+    <div class="data-highlight">
+        <p>{{ content.summary }}</p>
+    </div>
+    
+    <!-- 关键指标 -->
+    <div style="text-align: center; margin-top: 20px;">
+        {% if content.metadata %}
+        <div class="metric-box">
+            <div class="metric-value">{{ content.metadata.get('total_patents', 'N/A') }}</div>
+            <div class="metric-label">总专利数</div>
+        </div>
+        <div class="metric-box">
+            <div class="metric-value">{{ content.sections|length }}</div>
+            <div class="metric-label">分析维度</div>
+        </div>
+        <div class="metric-box">
+            <div class="metric-value">{{ charts|length }}</div>
+            <div class="metric-label">图表数量</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- 趋势分析 -->
+{% if content.sections.trend %}
+<div class="detailed-section">
+    <h2>📈 趋势分析</h2>
+    
+    <div class="analysis-grid">
+        <div class="analysis-card">
+            <h3>申请趋势</h3>
+            {% if charts.trend_chart %}
+            <div class="chart-container">
+                <img src="{{ charts.trend_chart.path }}" alt="专利申请趋势图" />
+                <p><em>图1: 专利申请趋势变化</em></p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="analysis-card">
+            <h3>趋势特征</h3>
+            <div class="data-highlight">
+                <p><strong>发展方向:</strong> <span class="trend-indicator trend-up">上升趋势</span></p>
+                <p><strong>增长特点:</strong> 技术创新活跃期</p>
+                <p><strong>市场热度:</strong> 持续关注</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="data-highlight">
+        <h4>详细分析</h4>
+        <div>{{ content.sections.trend }}</div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 竞争分析 -->
+{% if content.sections.competition %}
+<div class="detailed-section">
+    <h2>🏢 竞争分析</h2>
+    
+    <div class="analysis-grid">
+        <div class="analysis-card">
+            <h3>市场格局</h3>
+            {% if charts.competition_chart %}
+            <div class="chart-container">
+                <img src="{{ charts.competition_chart.path }}" alt="竞争格局图" />
+                <p><em>图2: 主要申请人分布</em></p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="analysis-card">
+            <h3>竞争态势</h3>
+            <div class="data-highlight">
+                <p><strong>市场集中度:</strong> 中等</p>
+                <p><strong>竞争激烈程度:</strong> 较高</p>
+                <p><strong>新进入者壁垒:</strong> 中等</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="data-highlight">
+        <h4>竞争格局分析</h4>
+        <div>{{ content.sections.competition }}</div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 技术分析 -->
+{% if content.sections.technology %}
+<div class="detailed-section">
+    <h2>🔬 技术分析</h2>
+    
+    <div class="analysis-grid">
+        <div class="analysis-card">
+            <h3>技术分布</h3>
+            {% if charts.technology_chart %}
+            <div class="chart-container">
+                <img src="{{ charts.technology_chart.path }}" alt="技术分类图" />
+                <p><em>图3: 技术领域分布</em></p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="analysis-card">
+            <h3>技术特征</h3>
+            <div class="data-highlight">
+                <p><strong>技术成熟度:</strong> 发展期</p>
+                <p><strong>创新活跃度:</strong> 高</p>
+                <p><strong>技术复杂度:</strong> 中高</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="data-highlight">
+        <h4>技术发展分析</h4>
+        <div>{{ content.sections.technology }}</div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 地域分析 -->
+{% if content.sections.geographic %}
+<div class="detailed-section">
+    <h2>🌍 地域分析</h2>
+    
+    <div class="analysis-grid">
+        <div class="analysis-card">
+            <h3>地域分布</h3>
+            {% if charts.geographic_chart %}
+            <div class="chart-container">
+                <img src="{{ charts.geographic_chart.path }}" alt="地域分布图" />
+                <p><em>图4: 地域分布情况</em></p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="analysis-card">
+            <h3>区域特征</h3>
+            <div class="data-highlight">
+                <p><strong>主要创新区域:</strong> 亚洲</p>
+                <p><strong>技术转移活跃度:</strong> 中等</p>
+                <p><strong>国际化程度:</strong> 较高</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="data-highlight">
+        <h4>地域发展分析</h4>
+        <div>{{ content.sections.geographic }}</div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 关键洞察 -->
+{% if content.insights %}
+<div class="detailed-section">
+    <h2>💡 关键洞察</h2>
+    <div class="data-highlight">
+        <div>{{ content.insights }}</div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 建议和结论 -->
+{% if content.recommendations %}
+<div class="detailed-section">
+    <h2>📋 建议和结论</h2>
+    <div class="analysis-grid">
+        <div class="analysis-card">
+            <h3>战略建议</h3>
+            <div>{{ content.recommendations }}</div>
+        </div>
+        
+        <div class="analysis-card">
+            <h3>风险提示</h3>
+            <div class="data-highlight">
+                <p>• 技术发展不确定性</p>
+                <p>• 市场竞争加剧风险</p>
+                <p>• 知识产权纠纷风险</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 数据说明 -->
+<div class="detailed-section">
+    <h2>📊 数据说明</h2>
+    <div class="data-highlight">
+        <p><strong>数据来源:</strong> 公开专利数据库</p>
+        <p><strong>分析方法:</strong> 多维度统计分析</p>
+        <p><strong>数据时效:</strong> {{ generation_time }}</p>
+        <p><strong>免责声明:</strong> 本报告基于公开数据分析，仅供参考，不构成投资建议。</p>
+    </div>
+</div>
+{% endblock %}
