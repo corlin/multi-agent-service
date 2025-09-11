@@ -4,9 +4,9 @@
   "failed_tests": 0,
   "critical_failures": 0,
   "success_rate": 1.0,
-  "duration": 1.110063,
+  "duration": 1.280036,
   "overall_status": "PASS",
-  "timestamp": "2025-09-11T22:48:49.093303",
+  "timestamp": "2025-09-11T23:58:57.050468",
   "detailed_results": [
     {
       "success": true,
@@ -52,7 +52,7 @@
               "registered_templates": 3,
               "active_executions": 0,
               "success_rate": 0.0,
-              "last_updated": "2025-09-11T22:48:48.076566"
+              "last_updated": "2025-09-11T23:58:56.128071"
             }
           }
         },
@@ -60,7 +60,7 @@
       },
       "test_name": "系统初始化验证",
       "critical": true,
-      "timestamp": "2025-09-11T22:48:48.076575"
+      "timestamp": "2025-09-11T23:58:56.128080"
     },
     {
       "success": true,
@@ -79,7 +79,7 @@
       "error": null,
       "test_name": "Agent注册验证",
       "critical": true,
-      "timestamp": "2025-09-11T22:48:48.076600"
+      "timestamp": "2025-09-11T23:58:56.128106"
     },
     {
       "success": true,
@@ -96,7 +96,7 @@
       "error": "不健康的组件: patent_workflows",
       "test_name": "Agent健康状态验证",
       "critical": false,
-      "timestamp": "2025-09-11T22:48:48.076631"
+      "timestamp": "2025-09-11T23:58:56.128135"
     },
     {
       "success": true,
@@ -109,7 +109,7 @@
           "registered_templates": 3,
           "active_executions": 0,
           "success_rate": 0.0,
-          "last_updated": "2025-09-11T22:48:48.076649"
+          "last_updated": "2025-09-11T23:58:56.128149"
         },
         "validation_result": {
           "is_valid": true,
@@ -126,7 +126,7 @@
       "error": null,
       "test_name": "工作流引擎验证",
       "critical": true,
-      "timestamp": "2025-09-11T22:48:48.076656"
+      "timestamp": "2025-09-11T23:58:56.128156"
     },
     {
       "success": true,
@@ -138,12 +138,12 @@
       },
       "test_name": "Agent通信验证",
       "critical": true,
-      "timestamp": "2025-09-11T22:48:48.076689"
+      "timestamp": "2025-09-11T23:58:56.128191"
     },
     {
       "success": true,
       "details": {
-        "execution_time": 1.016574,
+        "execution_time": 0.922238,
         "response_confidence": 0.95,
         "response_length": 2427,
         "collaboration_needed": false,
@@ -151,7 +151,7 @@
       },
       "test_name": "端到端流程验证",
       "critical": true,
-      "timestamp": "2025-09-11T22:48:49.093301"
+      "timestamp": "2025-09-11T23:58:57.050466"
     }
   ]
 }

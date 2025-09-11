@@ -12,6 +12,8 @@ from ..services.model_router import ModelRouter
 from ..services.intent_analyzer import IntentAnalyzer
 from ..services.agent_router import AgentRouter
 from ..services.hot_reload_service import HotReloadService
+# Import providers to ensure they are registered with ModelClientFactory
+from ..services import providers
 from ..agents.registry import AgentRegistry, agent_registry
 from ..workflows.graph_builder import GraphBuilder
 from ..workflows.state_management import WorkflowStateManager
@@ -209,7 +211,7 @@ class ServiceManager:
         from ..models.model_service import ModelConfig, LoadBalancingStrategy  # Use the model_service version
         from ..models.enums import ModelProvider
         
-        # Create default model configurations if none exist
+        # Create default model configurations with environment variables
         try:
             model_configs_dict = config_manager.get_all_model_configs()
             if model_configs_dict:
@@ -221,43 +223,130 @@ class ServiceManager:
                         provider=config_model.provider,
                         model_name=config_model.model_name,
                         api_key=config_model.api_key,
-                        base_url=config_model.api_base or "https://api.openai.com/v1",
+                        base_url=config_model.base_url or "https://api.openai.com/v1",
                         max_tokens=config_model.max_tokens,
                         temperature=config_model.temperature,
                         timeout=config_model.timeout,
-                        max_retries=config_model.retry_attempts,
-                        enabled=True,  # Default to enabled
-                        priority=1  # Default priority
+                        max_retries=config_model.max_retries,
+                        enabled=config_model.enabled,
+                        priority=config_model.priority
                     )
                     default_configs.append(service_config)
             else:
-                # Create default configurations
-                default_configs = [
-                    ModelConfig(
+                # Create default configurations with environment variables
+                default_configs = []
+                
+                # Qwen configuration
+                if settings.qwen_api_key:
+                    default_configs.append(ModelConfig(
                         provider=ModelProvider.QWEN,
                         model_name="qwen-turbo",
-                        api_key="",  # Will be loaded from environment
-                        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+                        api_key=settings.qwen_api_key,
+                        base_url=settings.qwen_api_url,
                         max_tokens=2000,
                         temperature=0.7,
                         priority=1,
                         enabled=True
-                    ),
-                    ModelConfig(
-                        provider=ModelProvider.DEEPSEEK,
-                        model_name="deepseek-chat",
-                        api_key="",  # Will be loaded from environment
-                        base_url="https://api.deepseek.com/v1",
+                    ))
+                    default_configs.append(ModelConfig(
+                        provider=ModelProvider.QWEN,
+                        model_name="qwen-plus",
+                        api_key=settings.qwen_api_key,
+                        base_url=settings.qwen_api_url,
                         max_tokens=2000,
                         temperature=0.7,
                         priority=2,
                         enabled=True
-                    )
-                ]
+                    ))
+                
+                # DeepSeek configuration
+                if settings.deepseek_api_key:
+                    default_configs.append(ModelConfig(
+                        provider=ModelProvider.DEEPSEEK,
+                        model_name="deepseek-chat",
+                        api_key=settings.deepseek_api_key,
+                        base_url=settings.deepseek_api_url,
+                        max_tokens=2000,
+                        temperature=0.7,
+                        priority=3,
+                        enabled=True
+                    ))
+                    default_configs.append(ModelConfig(
+                        provider=ModelProvider.DEEPSEEK,
+                        model_name="deepseek-coder",
+                        api_key=settings.deepseek_api_key,
+                        base_url=settings.deepseek_api_url,
+                        max_tokens=2000,
+                        temperature=0.7,
+                        priority=4,
+                        enabled=True
+                    ))
+                
+                # GLM configuration
+                if settings.glm_api_key:
+                    default_configs.append(ModelConfig(
+                        provider=ModelProvider.GLM,
+                        model_name="glm-4",
+                        api_key=settings.glm_api_key,
+                        base_url=settings.glm_api_url,
+                        max_tokens=2000,
+                        temperature=0.7,
+                        priority=5,
+                        enabled=True
+                    ))
+                    default_configs.append(ModelConfig(
+                        provider=ModelProvider.GLM,
+                        model_name="glm-3-turbo",
+                        api_key=settings.glm_api_key,
+                        base_url=settings.glm_api_url,
+                        max_tokens=2000,
+                        temperature=0.7,
+                        priority=6,
+                        enabled=True
+                    ))
+                
+                # OpenAI configuration (if available)
+                if settings.openai_api_key:
+                    default_configs.append(ModelConfig(
+                        provider=ModelProvider.OPENAI,
+                        model_name="gpt-3.5-turbo",
+                        api_key=settings.openai_api_key,
+                        base_url=settings.openai_api_url,
+                        max_tokens=2000,
+                        temperature=0.7,
+                        priority=7,
+                        enabled=True
+                    ))
+                
+                # If no API keys are configured, create disabled configs as placeholders
+                if not default_configs:
+                    self.logger.warning("No API keys configured, creating disabled model configurations")
+                    default_configs = [
+                        ModelConfig(
+                            provider=ModelProvider.QWEN,
+                            model_name="qwen-turbo",
+                            api_key="",
+                            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+                            max_tokens=2000,
+                            temperature=0.7,
+                            priority=1,
+                            enabled=False  # Disabled without API key
+                        ),
+                        ModelConfig(
+                            provider=ModelProvider.DEEPSEEK,
+                            model_name="deepseek-chat",
+                            api_key="",
+                            base_url="https://api.deepseek.com/v1",
+                            max_tokens=2000,
+                            temperature=0.7,
+                            priority=2,
+                            enabled=False  # Disabled without API key
+                        )
+                    ]
         
         except Exception as e:
-            self.logger.warning(f"Failed to load model configurations: {e}, using defaults")
-            # Fallback to basic default configuration
+            self.logger.warning(f"Failed to load model configurations: {e}, using fallback")
+            # Fallback to basic disabled configuration
             default_configs = [
                 ModelConfig(
                     provider=ModelProvider.QWEN,
@@ -267,7 +356,7 @@ class ServiceManager:
                     max_tokens=2000,
                     temperature=0.7,
                     priority=1,
-                    enabled=True
+                    enabled=False
                 )
             ]
         

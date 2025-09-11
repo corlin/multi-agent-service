@@ -106,6 +106,27 @@ class ModelRouter:
         
         return available
     
+    def get_default_client(self) -> Optional[BaseModelClient]:
+        """获取默认客户端（优先级最高的可用客户端）.
+        
+        Returns:
+            Optional[BaseModelClient]: 默认客户端，如果没有可用客户端则返回None
+        """
+        available_clients = self.get_available_clients()
+        if not available_clients:
+            # 如果没有可用客户端，返回第一个客户端（如果存在）
+            if self.clients:
+                return next(iter(self.clients.values()))
+            return None
+        
+        # 按优先级排序（数字越小优先级越高）
+        sorted_clients = sorted(
+            available_clients,
+            key=lambda x: self.configs[x[0]].priority
+        )
+        
+        return sorted_clients[0][1]
+    
     def _select_client_by_priority(self) -> Optional[Tuple[str, BaseModelClient]]:
         """按优先级选择客户端."""
         available_clients = self.get_available_clients()

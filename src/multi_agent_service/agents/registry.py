@@ -192,6 +192,10 @@ class AgentRegistry:
         agent_ids = self._agent_types.get(agent_type, [])
         return [self._agents[agent_id] for agent_id in agent_ids if agent_id in self._agents]
     
+    def get_registered_agent_types(self) -> List[AgentType]:
+        """获取所有已注册的智能体类型."""
+        return list(self._agent_classes.keys())
+    
     def get_available_agents(self, agent_type: Optional[AgentType] = None) -> List[BaseAgent]:
         """获取可用的智能体列表."""
         agents = []

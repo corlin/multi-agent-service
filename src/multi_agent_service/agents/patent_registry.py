@@ -42,15 +42,25 @@ class PatentAgentRegistry:
         """注册所有专利Agent到现有的AgentRegistry."""
         try:
             self.logger.info("Starting patent agent registration...")
+            self.logger.info(f"Available patent agent classes: {list(self.patent_agent_classes.keys())}")
             
             success_count = 0
             total_count = len(self.patent_agent_classes)
             
             for agent_type, agent_class in self.patent_agent_classes.items():
                 try:
+                    self.logger.info(f"Attempting to register patent agent: {agent_type.value} -> {agent_class.__name__}")
+                    
                     # 检查Agent类型是否已经注册
                     if self.agent_registry.is_agent_type_registered(agent_type):
                         self.logger.warning(f"Agent type {agent_type.value} already registered, skipping")
+                        self.registered_patent_agents[agent_type] = agent_class
+                        success_count += 1
+                        continue
+                    
+                    # 验证Agent类
+                    if not issubclass(agent_class, BaseAgent):
+                        self.logger.error(f"Agent class {agent_class.__name__} is not a subclass of BaseAgent")
                         continue
                     
                     # 注册Agent类
@@ -58,16 +68,25 @@ class PatentAgentRegistry:
                     self.registered_patent_agents[agent_type] = agent_class
                     
                     success_count += 1
-                    self.logger.info(f"Successfully registered patent agent: {agent_type.value}")
+                    self.logger.info(f"Successfully registered patent agent: {agent_type.value} -> {agent_class.__name__}")
                     
                 except Exception as e:
                     self.logger.error(f"Failed to register patent agent {agent_type.value}: {str(e)}")
+                    import traceback
+                    self.logger.error(f"Registration error traceback: {traceback.format_exc()}")
             
             self.logger.info(f"Patent agent registration completed: {success_count}/{total_count} agents registered")
+            
+            # 验证注册结果
+            registered_types = self.agent_registry.get_registered_agent_types()
+            self.logger.info(f"All registered agent types: {[t.value for t in registered_types]}")
+            
             return success_count == total_count
             
         except Exception as e:
             self.logger.error(f"Patent agent registration failed: {str(e)}")
+            import traceback
+            self.logger.error(f"Registration failure traceback: {traceback.format_exc()}")
             return False
     
     def register_patent_agent(self, agent_type: AgentType, agent_class: Type[BaseAgent]) -> bool:

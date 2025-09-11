@@ -360,6 +360,18 @@ class WorkflowStateManager:
         """获取执行状态."""
         return await self.state_manager.get_state(execution_id)
     
+    async def update_state(self, execution_id: str, state_data: Dict[str, Any]) -> bool:
+        """更新状态（直接调用底层状态管理器）."""
+        return await self.state_manager.update_state(execution_id, state_data)
+    
+    async def get_state(self, execution_id: str) -> Optional[Dict[str, Any]]:
+        """获取状态（直接调用底层状态管理器）."""
+        return await self.state_manager.get_state(execution_id)
+    
+    async def delete_state(self, execution_id: str) -> bool:
+        """删除状态（直接调用底层状态管理器）."""
+        return await self.state_manager.delete_state(execution_id)
+    
     async def send_node_message(
         self, 
         sender_node: str, 

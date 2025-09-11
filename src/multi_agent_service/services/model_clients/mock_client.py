@@ -88,3 +88,27 @@ class MockModelClient(BaseModelClient):
                 "total_tokens": 22
             }
         }
+    
+    async def generate_response(self, prompt: str, **kwargs) -> str:
+        """Generate a mock response for the given prompt.
+        
+        Args:
+            prompt: The input prompt
+            **kwargs: Additional parameters
+            
+        Returns:
+            str: Mock response text
+        """
+        # Simulate processing delay
+        import asyncio
+        await asyncio.sleep(0.1)
+        
+        # Return a contextual mock response based on prompt content
+        if "专利" in prompt or "patent" in prompt.lower():
+            return "这是一个关于专利分析的模拟AI响应。基于输入的专利数据，我们可以看到相关技术领域的发展趋势和创新方向。"
+        elif "分析" in prompt or "analysis" in prompt.lower():
+            return "这是一个数据分析的模拟AI响应。通过对提供的数据进行深入分析，我们发现了一些有趣的模式和趋势。"
+        elif "报告" in prompt or "report" in prompt.lower():
+            return "这是一个报告生成的模拟AI响应。报告内容包括数据概览、关键发现、趋势分析和建议等部分。"
+        else:
+            return "这是一个通用的模拟AI响应，用于演示和测试目的。实际使用时会根据具体的模型和配置生成相应的内容。"

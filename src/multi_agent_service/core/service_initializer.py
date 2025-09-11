@@ -59,19 +59,41 @@ class ServiceInitializer:
         """Get agent configurations from config manager."""
         try:
             # Try to get configurations from config manager
-            config_data = await self.config_manager.get_config("agents")
+            config_data = self.config_manager.get_config("agents")
             
             if not config_data or "agents" not in config_data:
                 return []
             
             agent_configs = []
-            for agent_data in config_data["agents"]:
-                try:
-                    config = AgentConfig(**agent_data)
-                    agent_configs.append(config)
-                except Exception as e:
-                    self.logger.warning(f"Invalid agent config: {agent_data}, error: {e}")
-                    continue
+            agents_dict = config_data["agents"]
+            
+            # Handle both list and dict formats
+            if isinstance(agents_dict, dict):
+                # If it's a dict with agent_id as keys
+                for agent_id, agent_data in agents_dict.items():
+                    try:
+                        if isinstance(agent_data, dict):
+                            config = AgentConfig(**agent_data)
+                        else:
+                            self.logger.warning(f"Invalid agent config format for {agent_id}: {type(agent_data)}")
+                            continue
+                        agent_configs.append(config)
+                    except Exception as e:
+                        self.logger.warning(f"Invalid agent config: {agent_id}, error: {e}")
+                        continue
+            elif isinstance(agents_dict, list):
+                # If it's a list of agent configs
+                for agent_data in agents_dict:
+                    try:
+                        if isinstance(agent_data, dict):
+                            config = AgentConfig(**agent_data)
+                        else:
+                            self.logger.warning(f"Invalid agent config format: {type(agent_data)}")
+                            continue
+                        agent_configs.append(config)
+                    except Exception as e:
+                        self.logger.warning(f"Invalid agent config: {agent_data}, error: {e}")
+                        continue
             
             return agent_configs
             
@@ -121,7 +143,7 @@ class ServiceInitializer:
                 provider=ModelProvider.QWEN,
                 model_name="qwen-turbo",
                 api_key="",  # Will be loaded from environment
-                api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
+                base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
                 max_tokens=2000,
                 temperature=0.7
             )

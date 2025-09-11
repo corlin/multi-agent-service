@@ -53,7 +53,8 @@ def test_patent_models():
         inventors=["Test Inventor"],
         application_date=datetime(2024, 1, 1),
         country="US",
-        status="Published"
+        status="Published",
+        data_source="test_source"
     )
     
     print(f"✅ Created patent: {patent.title}")
@@ -61,6 +62,7 @@ def test_patent_models():
     # Test PatentAnalysisRequest model
     request = PatentAnalysisRequest(
         request_id="test_request_001",
+        content="Test patent analysis request",
         keywords=["artificial intelligence", "machine learning"],
         max_patents=100
     )
@@ -128,12 +130,49 @@ async def test_patent_agent_basic_functionality():
         from src.multi_agent_service.services.model_client import BaseModelClient
         
         # Create a mock model client
+        from multi_agent_service.models.model_service import ModelConfig
+        from multi_agent_service.models.enums import ModelProvider
+        
+        mock_config = ModelConfig(
+            provider=ModelProvider.OPENAI,
+            model_name="test-model",
+            api_key="test_key",
+            base_url="https://test.com",
+            max_tokens=2000,
+            temperature=0.3,
+            timeout=30
+        )
+        
         class MockModelClient(BaseModelClient):
+            def _get_auth_headers(self):
+                return {"Authorization": "Bearer test_key"}
+            
+            def _prepare_request_data(self, request):
+                return {"model": "test", "messages": request.messages}
+            
+            def _parse_response_data(self, response_data, request):
+                from multi_agent_service.models.model_service import ModelResponse
+                return ModelResponse(
+                    id="test_id",
+                    created=1234567890,
+                    model="test_model",
+                    choices=[{
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Test response"},
+                        "finish_reason": "stop"
+                    }],
+                    usage={"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+                    provider=self.provider,
+                    response_time=0.1
+                )
+            
             async def initialize(self):
                 return True
             
             async def health_check(self):
                 return True
+        
+        mock_client = MockModelClient(mock_config)
         
         # Create agent config
         config = AgentConfig(
@@ -160,7 +199,7 @@ async def test_patent_agent_basic_functionality():
         )
         
         # Create agent
-        agent = PatentDataCollectionAgent(config, MockModelClient())
+        agent = PatentDataCollectionAgent(config, mock_client)
         
         # Test capabilities
         capabilities = await agent.get_capabilities()

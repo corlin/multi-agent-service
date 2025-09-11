@@ -1,0 +1,156 @@
+{
+  "test_configuration": {
+    "name": "专利系统真实环境测试配置",
+    "version": "1.0.0",
+    "description": "用于配置真实环境测试的各项参数和基准值"
+  },
+  
+  "performance_baselines": {
+    "system_startup_time": 30.0,
+    "simple_query_time": 10.0,
+    "complex_analysis_time": 120.0,
+    "memory_usage_mb": 1024,
+    "cpu_usage_percent": 80,
+    "concurrent_request_limit": 10,
+    "data_processing_speed": 100
+  },
+  
+  "test_scenarios_config": {
+    "system_tests": {
+      "enabled": true,
+      "timeout_multiplier": 1.0,
+      "retry_count": 1
+    },
+    "functionality_tests": {
+      "enabled": true,
+      "timeout_multiplier": 1.0,
+      "retry_count": 2
+    },
+    "workflow_tests": {
+      "enabled": true,
+      "timeout_multiplier": 1.5,
+      "retry_count": 1
+    },
+    "performance_tests": {
+      "enabled": true,
+      "timeout_multiplier": 2.0,
+      "retry_count": 1,
+      "concurrent_requests": 5
+    },
+    "scalability_tests": {
+      "enabled": true,
+      "timeout_multiplier": 3.0,
+      "retry_count": 1,
+      "dataset_sizes": [100, 500, 1000]
+    },
+    "reliability_tests": {
+      "enabled": true,
+      "timeout_multiplier": 1.5,
+      "retry_count": 1
+    },
+    "integration_tests": {
+      "enabled": true,
+      "timeout_multiplier": 1.0,
+      "retry_count": 2
+    },
+    "stability_tests": {
+      "enabled": false,
+      "timeout_multiplier": 10.0,
+      "retry_count": 1,
+      "duration_minutes": 5
+    }
+  },
+  
+  "test_data": {
+    "sample_keywords": [
+      ["人工智能", "机器学习"],
+      ["深度学习", "神经网络"],
+      ["计算机视觉", "图像识别"],
+      ["自然语言处理", "文本分析"],
+      ["区块链", "智能合约"],
+      ["5G", "通信技术"],
+      ["物联网", "传感器"],
+      ["量子计算", "量子算法"]
+    ],
+    
+    "date_ranges": [
+      {
+        "name": "近期",
+        "start_date": "2022-01-01",
+        "end_date": "2023-12-31"
+      },
+      {
+        "name": "中期",
+        "start_date": "2020-01-01",
+        "end_date": "2023-12-31"
+      },
+      {
+        "name": "长期",
+        "start_date": "2018-01-01",
+        "end_date": "2023-12-31"
+      }
+    ],
+    
+    "analysis_types": [
+      "simple_search",
+      "trend_analysis",
+      "competitive_analysis",
+      "technology_analysis",
+      "comprehensive"
+    ],
+    
+    "countries": ["US", "CN", "EP", "JP", "KR", "DE", "GB", "FR"]
+  },
+  
+  "success_criteria": {
+    "minimum_success_rate": 0.8,
+    "critical_test_success_rate": 1.0,
+    "maximum_critical_failures": 0,
+    "performance_degradation_threshold": 0.2,
+    "memory_leak_threshold_mb": 100,
+    "response_time_threshold_multiplier": 2.0
+  },
+  
+  "monitoring": {
+    "collect_system_metrics": true,
+    "metric_collection_interval": 5,
+    "performance_profiling": true,
+    "memory_tracking": true,
+    "cpu_tracking": true,
+    "disk_tracking": false,
+    "network_tracking": false
+  },
+  
+  "reporting": {
+    "generate_detailed_report": true,
+    "generate_summary_report": true,
+    "save_performance_data": true,
+    "include_system_info": true,
+    "include_test_data": false,
+    "report_formats": ["json", "html"],
+    "compress_large_reports": true
+  },
+  
+  "environment": {
+    "test_mode": true,
+    "mock_external_apis": true,
+    "use_test_data": true,
+    "cleanup_temp_files": true,
+    "log_level": "INFO",
+    "log_to_file": true,
+    "log_file": "real_environment_test.log"
+  },
+  
+  "fault_injection": {
+    "enabled": false,
+    "fault_types": [
+      "timeout",
+      "memory_pressure",
+      "cpu_pressure",
+      "network_delay",
+      "service_unavailable"
+    ],
+    "fault_probability": 0.1,
+    "recovery_timeout": 30
+  }
+}

@@ -130,12 +130,14 @@ class PatentSystemInitializer:
                     # 继续使用模拟客户端
                 
                 # 创建模型路由器
-                model_router = ModelRouter(config_manager)
+                model_configs_list = list(config_manager.get_all_model_configs().values())
+                model_router = ModelRouter(model_configs_list) if model_configs_list else None
                 
                 # 尝试获取默认客户端
                 default_client = None
                 try:
-                    default_client = model_router.get_default_client()
+                    if model_router:
+                        default_client = model_router.get_default_client()
                 except Exception as e:
                     self.logger.warning(f"Could not get default client from router: {str(e)}")
                 
@@ -215,7 +217,7 @@ class PatentSystemInitializer:
                         provider=ModelProvider.OPENAI,
                         model_name="mock-model",
                         api_key="mock-key",
-                        api_base="http://localhost:8000",
+                        base_url="http://localhost:8000",
                         max_tokens=2048,
                         temperature=0.7,
                         timeout=30

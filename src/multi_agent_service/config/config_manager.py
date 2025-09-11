@@ -372,6 +372,40 @@ class ConfigManager:
             self._intent_config = IntentConfig()
         return self._intent_config
     
+    def get_config(self, config_type: str) -> Optional[Dict[str, Any]]:
+        """获取指定类型的配置.
+        
+        Args:
+            config_type: 配置类型 ('agents', 'models', 'workflows')
+            
+        Returns:
+            Optional[Dict[str, Any]]: 配置数据
+        """
+        if config_type == "agents":
+            return {
+                "agents": {
+                    agent_id: config.model_dump()
+                    for agent_id, config in self._agent_configs.items()
+                }
+            }
+        elif config_type == "models":
+            return {
+                "models": {
+                    model_id: config.model_dump()
+                    for model_id, config in self._model_configs.items()
+                }
+            }
+        elif config_type == "workflows":
+            return {
+                "workflows": {
+                    workflow_id: config.model_dump()
+                    for workflow_id, config in self._workflow_configs.items()
+                }
+            }
+        else:
+            logger.warning(f"Unknown config type: {config_type}")
+            return None
+    
     def update_agent_config(self, agent_id: str, config: AgentConfig) -> None:
         """更新智能体配置."""
         with self._config_lock:

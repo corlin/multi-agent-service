@@ -20,11 +20,11 @@
         "provider": "qwen",
         "model_name": "qwen-turbo",
         "api_key": "${QWEN_API_KEY}",
-        "api_base": "https://dashscope.aliyuncs.com/api/v1",
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "max_tokens": 2000,
         "temperature": 0.3,
         "timeout": 30,
-        "retry_attempts": 3
+        "max_retries": 3
       },
       "prompt_template": "你是专利数据收集智能体，负责从多个数据源收集和整理专利数据。请确保数据的准确性和完整性。",
       "system_prompt": "作为专利数据收集智能体，你需要：1. 从多个专利数据源收集数据 2. 验证数据质量 3. 去重和标准化处理 4. 提供高质量的专利数据集",
@@ -69,11 +69,11 @@
         "provider": "qwen",
         "model_name": "qwen-turbo",
         "api_key": "${QWEN_API_KEY}",
-        "api_base": "https://dashscope.aliyuncs.com/api/v1",
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "max_tokens": 2000,
         "temperature": 0.4,
         "timeout": 30,
-        "retry_attempts": 3
+        "max_retries": 3
       },
       "prompt_template": "你是专利搜索增强智能体，负责通过多种渠道搜索和收集专利相关信息。请提供全面和准确的搜索结果。",
       "system_prompt": "作为专利搜索增强智能体，你需要：1. 集成多种搜索源 2. 进行智能信息检索 3. 评估搜索结果质量 4. 提供增强的专利信息",
@@ -116,11 +116,11 @@
         "provider": "qwen",
         "model_name": "qwen-plus",
         "api_key": "${QWEN_API_KEY}",
-        "api_base": "https://dashscope.aliyuncs.com/api/v1",
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "max_tokens": 4000,
         "temperature": 0.2,
         "timeout": 60,
-        "retry_attempts": 2
+        "max_retries": 2
       },
       "prompt_template": "你是专利分析处理智能体，负责对专利数据进行深度分析和洞察挖掘。请提供专业的分析结果和建议。",
       "system_prompt": "作为专利分析智能体，你需要：1. 进行多维度专利分析 2. 识别技术趋势和模式 3. 分析竞争格局 4. 提供专业的分析洞察",
@@ -163,11 +163,11 @@
         "provider": "qwen",
         "model_name": "qwen-plus",
         "api_key": "${QWEN_API_KEY}",
-        "api_base": "https://dashscope.aliyuncs.com/api/v1",
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "max_tokens": 3000,
         "temperature": 0.1,
         "timeout": 60,
-        "retry_attempts": 2
+        "max_retries": 2
       },
       "prompt_template": "你是专利协调管理智能体，负责统筹协调专利分析工作流程。请合理分配任务并确保高质量的分析结果。",
       "system_prompt": "作为专利协调智能体，你需要：1. 编排专利分析工作流 2. 协调多个Agent协作 3. 监控分析质量 4. 整合最终结果",
@@ -208,11 +208,11 @@
         "provider": "qwen",
         "model_name": "qwen-turbo",
         "api_key": "${QWEN_API_KEY}",
-        "api_base": "https://dashscope.aliyuncs.com/api/v1",
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "max_tokens": 4000,
         "temperature": 0.3,
         "timeout": 30,
-        "retry_attempts": 2
+        "max_retries": 2
       },
       "prompt_template": "你是专利报告生成智能体，负责生成专业的专利分析报告。请确保报告内容准确、结构清晰、图表丰富。",
       "system_prompt": "作为专利报告生成智能体，你需要：1. 生成专业的分析报告 2. 创建清晰的图表和可视化 3. 确保报告质量 4. 支持多种格式导出",

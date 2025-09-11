@@ -1,0 +1,58 @@
+{
+  "concurrent_scenarios": [
+    {
+      "concurrent_users": 1,
+      "request_rate": 1,
+      "duration_seconds": 30,
+      "expected_success_rate": 0.94
+    },
+    {
+      "concurrent_users": 3,
+      "request_rate": 2,
+      "duration_seconds": 60,
+      "expected_success_rate": 0.9199999999999999
+    },
+    {
+      "concurrent_users": 5,
+      "request_rate": 3,
+      "duration_seconds": 90,
+      "expected_success_rate": 0.8999999999999999
+    },
+    {
+      "concurrent_users": 10,
+      "request_rate": 5,
+      "duration_seconds": 120,
+      "expected_success_rate": 0.85
+    }
+  ],
+  "load_scenarios": [
+    {
+      "data_size": 100,
+      "processing_mode": "batch",
+      "expected_throughput": 50,
+      "memory_limit_mb": 256
+    },
+    {
+      "data_size": 500,
+      "processing_mode": "batch",
+      "expected_throughput": 100,
+      "memory_limit_mb": 512
+    },
+    {
+      "data_size": 1000,
+      "processing_mode": "stream",
+      "expected_throughput": 150,
+      "memory_limit_mb": 1024
+    },
+    {
+      "data_size": 5000,
+      "processing_mode": "distributed",
+      "expected_throughput": 200,
+      "memory_limit_mb": 2048
+    }
+  ],
+  "metadata": {
+    "generated_at": "2025-09-12T00:04:32.382668",
+    "data_type": "performance_test_scenarios"
+  }
+}

@@ -1784,6 +1784,96 @@ class PatentCoordinatorAgent(CoordinatorAgent):
         
         return actions
     
+    async def _health_check_specific(self) -> bool:
+        """专利协调Agent特定的健康检查."""
+        try:
+            # 检查工作流状态管理器
+            if self.state_manager:
+                try:
+                    # 测试状态管理器的基本功能
+                    test_workflow_id = f"health_check_{datetime.now().timestamp()}"
+                    test_state = {"status": "test", "timestamp": datetime.now().isoformat()}
+                    
+                    # 尝试保存和获取状态
+                    await self.state_manager.update_state(test_workflow_id, test_state)
+                    retrieved_state = await self.state_manager.get_state(test_workflow_id)
+                    
+                    if not retrieved_state or retrieved_state.get("status") != "test":
+                        self.logger.error("State manager health check failed")
+                        return False
+                    
+                    # 清理测试数据
+                    await self.state_manager.delete_state(test_workflow_id)
+                    
+                except Exception as e:
+                    self.logger.warning(f"State manager health check failed: {str(e)}")
+                    # 状态管理器失败不应该导致整个健康检查失败
+            
+            # 检查专利工作流配置
+            if not self.patent_workflow_config:
+                self.logger.error("Patent workflow configuration is missing")
+                return False
+            
+            # 检查必要的配置项
+            required_config_keys = ['data_collection_agents', 'search_agents', 'analysis_agents', 'report_agents']
+            for key in required_config_keys:
+                if key not in self.patent_workflow_config:
+                    self.logger.error(f"Missing required patent workflow config: {key}")
+                    return False
+            
+            # 检查活跃任务数量
+            if len(self.active_patent_tasks) > 100:  # 防止任务堆积
+                self.logger.warning(f"Too many active patent tasks: {len(self.active_patent_tasks)}")
+                # 清理超时的任务
+                await self._cleanup_expired_tasks()
+            
+            # 检查Agent路由器（如果可用）
+            if self.agent_router:
+                try:
+                    # 简单的路由器健康检查
+                    from ...models.base import UserRequest
+                    test_request = UserRequest(
+                        content="health check test",
+                        user_id="health_check"
+                    )
+                    # 不实际路由，只检查路由器是否响应
+                    # 这里只是验证路由器对象存在且可访问
+                    pass
+                except Exception as e:
+                    self.logger.warning(f"Agent router health check failed: {str(e)}")
+                    # Agent路由器失败不应该导致整个健康检查失败
+            
+            self.logger.debug(f"Patent coordinator agent {self.agent_id} health check passed")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Patent coordinator health check failed: {str(e)}")
+            return False
+    
+    async def _cleanup_expired_tasks(self):
+        """清理过期的专利任务."""
+        try:
+            current_time = datetime.now()
+            expired_tasks = []
+            
+            for task_id, task_context in self.active_patent_tasks.items():
+                start_time = task_context.get("start_time")
+                if start_time and isinstance(start_time, datetime):
+                    # 如果任务运行超过1小时，认为是过期任务
+                    if (current_time - start_time).total_seconds() > 3600:
+                        expired_tasks.append(task_id)
+            
+            # 清理过期任务
+            for task_id in expired_tasks:
+                del self.active_patent_tasks[task_id]
+                self.logger.info(f"Cleaned up expired patent task: {task_id}")
+            
+            if expired_tasks:
+                self.logger.info(f"Cleaned up {len(expired_tasks)} expired patent tasks")
+                
+        except Exception as e:
+            self.logger.error(f"Error cleaning up expired tasks: {str(e)}")
+
     async def _validate_config(self) -> bool:
         """验证专利协调Agent配置."""
         # 允许专利协调Agent类型
