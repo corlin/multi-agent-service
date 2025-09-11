@@ -7,6 +7,7 @@ from ..agents.registry import AgentRegistry
 from ..agents.patent_registry import PatentAgentRegistry, initialize_patent_agents
 from ..workflows.patent_workflow_registry import PatentWorkflowRegistry, initialize_patent_workflow_system
 from ..workflows.state_management import WorkflowStateManager
+from ..models.enums import ModelProvider
 
 
 logger = logging.getLogger(__name__)
@@ -208,6 +209,30 @@ class PatentSystemInitializer:
                         self.logger.warning(f"Unknown agent type: {agent_type_str}")
                         continue
                     
+                    # 创建模型配置
+                    from ..models.config import ModelConfig
+                    llm_config = ModelConfig(
+                        provider=ModelProvider.OPENAI,
+                        model_name="mock-model",
+                        api_key="mock-key",
+                        api_base="http://localhost:8000",
+                        max_tokens=2048,
+                        temperature=0.7,
+                        timeout=30
+                    )
+                    
+                    # 创建提示词模板
+                    prompt_template = f"""你是一个专业的{agent_config_dict['name']}。
+
+你的主要职责是：
+{agent_config_dict['description']}
+
+请根据用户的请求，提供专业、准确的回答。
+
+用户请求：{{user_input}}
+
+请回答："""
+                    
                     # 创建AgentConfig对象
                     agent_config = AgentConfig(
                         agent_id=agent_config_dict["agent_id"],
@@ -215,7 +240,8 @@ class PatentSystemInitializer:
                         name=agent_config_dict["name"],
                         description=agent_config_dict["description"],
                         enabled=agent_config_dict["enabled"],
-                        config={}
+                        llm_config=llm_config,
+                        prompt_template=prompt_template
                     )
                     
                     # 创建Agent实例
@@ -246,52 +272,66 @@ class PatentSystemInitializer:
     def _create_mock_model_client(self):
         """创建模拟的模型客户端用于演示."""
         from ..services.model_client import BaseModelClient
+        from ..models.model_service import ModelConfig
+        from ..models.enums import ModelProvider
         
         class MockModelClient(BaseModelClient):
             """模拟模型客户端，用于演示和测试."""
             
             def __init__(self):
-                super().__init__()
+                # 创建模拟配置
+                mock_config = ModelConfig(
+                    provider=ModelProvider.OPENAI,  # 使用一个有效的枚举值
+                    model_name="mock-model",
+                    api_key="mock-key",
+                    base_url="http://localhost:8000",
+                    enabled=True,
+                    timeout=30.0
+                )
+                super().__init__(mock_config)
                 self.provider = "mock"
                 self.model_name = "mock-model"
                 self.is_available = True
-            
-            async def generate_response(self, messages, **kwargs):
-                """生成模拟响应."""
-                return {
-                    "content": "这是一个模拟的AI响应，用于演示专利分析系统。",
-                    "usage": {"total_tokens": 50}
-                }
-            
-            async def health_check(self):
-                """健康检查."""
-                return True
-            
-            def get_model_info(self):
-                """获取模型信息."""
-                return {
-                    "provider": self.provider,
-                    "model": self.model_name,
-                    "status": "available"
-                }
             
             def _get_auth_headers(self):
                 """获取认证头."""
                 return {}
             
-            def _prepare_request_data(self, messages, **kwargs):
+            def _prepare_request_data(self, request):
                 """准备请求数据."""
                 return {
-                    "messages": messages,
-                    "model": self.model_name
+                    "messages": request.messages,
+                    "model": self.model_name,
+                    "max_tokens": request.max_tokens or 100,
+                    "temperature": request.temperature or 0.7
                 }
             
-            def _parse_response_data(self, response_data):
+            def _parse_response_data(self, response_data, request):
                 """解析响应数据."""
-                return {
-                    "content": response_data.get("content", "Mock response"),
-                    "usage": response_data.get("usage", {"total_tokens": 50})
-                }
+                from ..models.model_service import ModelResponse
+                from ..models.enums import ModelProvider
+                import time
+                
+                return ModelResponse(
+                    id="mock-response-id",
+                    created=int(time.time()),
+                    model=self.model_name,
+                    choices=[{
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": "这是一个模拟的AI响应，用于演示专利分析系统。"
+                        },
+                        "finish_reason": "stop"
+                    }],
+                    usage={"total_tokens": 50, "prompt_tokens": 20, "completion_tokens": 30},
+                    provider=ModelProvider.OPENAI,
+                    response_time=0.1
+                )
+            
+            async def health_check(self):
+                """健康检查."""
+                return True
         
         return MockModelClient()
     

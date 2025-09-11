@@ -1,0 +1,157 @@
+{
+  "total_tests": 6,
+  "passed_tests": 6,
+  "failed_tests": 0,
+  "critical_failures": 0,
+  "success_rate": 1.0,
+  "duration": 1.110063,
+  "overall_status": "PASS",
+  "timestamp": "2025-09-11T22:48:49.093303",
+  "detailed_results": [
+    {
+      "success": true,
+      "details": {
+        "initialized": true,
+        "components": {
+          "patent_agents": {
+            "initialized": true,
+            "registered_count": 5,
+            "info": {
+              "total_registered": 5,
+              "registered_types": [
+                "patent_data_collection",
+                "patent_coordinator",
+                "patent_search",
+                "patent_analysis",
+                "patent_report"
+              ],
+              "available_types": [
+                "patent_data_collection",
+                "patent_coordinator",
+                "patent_search",
+                "patent_analysis",
+                "patent_report"
+              ],
+              "registration_status": {
+                "patent_data_collection": true,
+                "patent_coordinator": true,
+                "patent_search": true,
+                "patent_analysis": true,
+                "patent_report": true
+              }
+            }
+          },
+          "patent_workflows": {
+            "initialized": true,
+            "registered_count": 3,
+            "statistics": {
+              "total_executions": 0,
+              "successful_executions": 0,
+              "failed_executions": 0,
+              "average_duration": 0.0,
+              "registered_templates": 3,
+              "active_executions": 0,
+              "success_rate": 0.0,
+              "last_updated": "2025-09-11T22:48:48.076566"
+            }
+          }
+        },
+        "errors": []
+      },
+      "test_name": "系统初始化验证",
+      "critical": true,
+      "timestamp": "2025-09-11T22:48:48.076575"
+    },
+    {
+      "success": true,
+      "details": {
+        "registration_status": {
+          "patent_coordinator": true,
+          "patent_data_collection": true,
+          "patent_search": true,
+          "patent_analysis": true,
+          "patent_report": true
+        },
+        "missing_agents": [],
+        "total_patent_agents": 5,
+        "registered_count": 5
+      },
+      "error": null,
+      "test_name": "Agent注册验证",
+      "critical": true,
+      "timestamp": "2025-09-11T22:48:48.076600"
+    },
+    {
+      "success": true,
+      "details": {
+        "overall_health": true,
+        "component_health": {
+          "patent_agents": "healthy",
+          "patent_workflows": "unknown"
+        },
+        "unhealthy_components": [
+          "patent_workflows"
+        ]
+      },
+      "error": "不健康的组件: patent_workflows",
+      "test_name": "Agent健康状态验证",
+      "critical": false,
+      "timestamp": "2025-09-11T22:48:48.076631"
+    },
+    {
+      "success": true,
+      "details": {
+        "workflow_statistics": {
+          "total_executions": 0,
+          "successful_executions": 0,
+          "failed_executions": 0,
+          "average_duration": 0.0,
+          "registered_templates": 3,
+          "active_executions": 0,
+          "success_rate": 0.0,
+          "last_updated": "2025-09-11T22:48:48.076649"
+        },
+        "validation_result": {
+          "is_valid": true,
+          "errors": [],
+          "warnings": [],
+          "registered_templates": [
+            "comprehensive_patent_analysis",
+            "quick_patent_search",
+            "patent_trend_analysis"
+          ],
+          "missing_components": []
+        }
+      },
+      "error": null,
+      "test_name": "工作流引擎验证",
+      "critical": true,
+      "timestamp": "2025-09-11T22:48:48.076656"
+    },
+    {
+      "success": true,
+      "details": {
+        "coordinator_available": true,
+        "coordinator_healthy": true,
+        "agent_id": "patent_coordinator_default",
+        "agent_type": "patent_coordinator"
+      },
+      "test_name": "Agent通信验证",
+      "critical": true,
+      "timestamp": "2025-09-11T22:48:48.076689"
+    },
+    {
+      "success": true,
+      "details": {
+        "execution_time": 1.016574,
+        "response_confidence": 0.95,
+        "response_length": 2427,
+        "collaboration_needed": false,
+        "has_metadata": true
+      },
+      "test_name": "端到端流程验证",
+      "critical": true,
+      "timestamp": "2025-09-11T22:48:49.093301"
+    }
+  ]
+}

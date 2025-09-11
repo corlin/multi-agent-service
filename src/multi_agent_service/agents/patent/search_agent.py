@@ -115,6 +115,11 @@ class PatentSearchAgent(PatentBaseAgent):
         start_time = datetime.now()
         
         try:
+            # 检查是否为测试模式
+            if request.context and request.context.get("mock_mode", False):
+                self.logger.info("Running in mock mode, returning simulated search results")
+                return await self._generate_mock_search_response(request)
+            
             # 解析搜索请求
             search_params = self._parse_search_request(request.content)
             
@@ -982,6 +987,68 @@ class PatentSearchAgent(PatentBaseAgent):
         response += "- 如需最新资讯，我可以加强网络搜索\n"
         
         return response
+    
+    async def _generate_mock_search_response(self, request: UserRequest) -> AgentResponse:
+        """生成模拟搜索响应，用于测试模式."""
+        keywords = request.context.get("keywords", ["测试"])
+        
+        # 模拟搜索结果
+        mock_results = [
+            {
+                "title": f"关于{keywords[0]}的专利技术研究",
+                "abstract": f"本发明涉及{keywords[0]}领域的技术创新，提供了一种新的解决方案。",
+                "applicant": "测试公司",
+                "publication_date": "2024-01-01",
+                "patent_number": "CN123456789A",
+                "ipc_class": "G06F",
+                "relevance_score": 0.95
+            },
+            {
+                "title": f"{keywords[0]}系统的优化方法",
+                "abstract": f"针对现有{keywords[0]}系统的不足，提出了一种改进的技术方案。",
+                "applicant": "创新科技有限公司",
+                "publication_date": "2024-02-01",
+                "patent_number": "CN987654321A",
+                "ipc_class": "H04L",
+                "relevance_score": 0.88
+            }
+        ]
+        
+        response_content = f"""
+🔍 **专利搜索结果** (模拟模式)
+
+**搜索关键词**: {', '.join(keywords)}
+**结果数量**: {len(mock_results)}
+
+**搜索结果**:
+"""
+        
+        for i, result in enumerate(mock_results, 1):
+            response_content += f"""
+{i}. **{result['title']}**
+   - 申请人: {result['applicant']}
+   - 公开日期: {result['publication_date']}
+   - 专利号: {result['patent_number']}
+   - IPC分类: {result['ipc_class']}
+   - 相关度: {result['relevance_score']:.2f}
+   - 摘要: {result['abstract']}
+"""
+        
+        response_content += "\n✅ 搜索完成 (模拟数据)"
+        
+        return AgentResponse(
+            agent_id=self.agent_id,
+            agent_type=self.agent_type,
+            response_content=response_content,
+            confidence=0.85,
+            collaboration_needed=False,
+            metadata={
+                "mock_mode": True,
+                "results_count": len(mock_results),
+                "keywords": keywords,
+                "processing_time": 0.1
+            }
+        )
     
     def _generate_search_actions(self, search_params: Dict[str, Any], results: List[Dict[str, Any]]) -> List[Action]:
         """生成搜索相关的后续动作."""

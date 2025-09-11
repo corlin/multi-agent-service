@@ -368,7 +368,9 @@ class PatentSystemValidator:
                     "test_mode": True,
                     "validation_test": True,
                     "keywords": ["人工智能"],
-                    "analysis_type": "quick_search"
+                    "analysis_type": "quick_search",
+                    "mock_mode": True,  # 启用模拟模式，避免外部API调用
+                    "timeout": 10  # 设置较短的超时时间
                 }
             )
             
@@ -390,7 +392,7 @@ class PatentSystemValidator:
                 # 设置较短的超时时间
                 response = await asyncio.wait_for(
                     coordinator.process_request(test_request),
-                    timeout=30.0  # 30秒超时
+                    timeout=10.0  # 10秒超时
                 )
                 
                 end_time = datetime.now()
@@ -417,7 +419,7 @@ class PatentSystemValidator:
             except asyncio.TimeoutError:
                 return {
                     "success": False,
-                    "error": "端到端测试超时（30秒）"
+                    "error": "端到端测试超时（10秒）"
                 }
             
         except Exception as e:

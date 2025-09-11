@@ -273,6 +273,10 @@ class BaseAgent(AgentLifecycleInterface, AgentCollaborationInterface, AgentProce
             self.logger.error(f"Health check failed for agent {self.agent_id}: {str(e)}")
             return False
     
+    def is_healthy(self) -> bool:
+        """同步健康检查方法，返回当前状态是否健康."""
+        return self._status in [AgentStatus.IDLE, AgentStatus.BUSY]
+    
     async def process_request(self, request: UserRequest) -> AgentResponse:
         """处理用户请求."""
         task_id = str(uuid4())
@@ -289,7 +293,7 @@ class BaseAgent(AgentLifecycleInterface, AgentCollaborationInterface, AgentProce
             self._status = AgentStatus.BUSY
             self._last_active = datetime.now()
             
-            request_id = getattr(request, 'request_id', request.get('request_id', 'unknown')) if hasattr(request, 'get') or hasattr(request, 'request_id') else 'unknown'
+            request_id = getattr(request, 'request_id', 'unknown')
             self.logger.info(f"Processing request {request_id} with task {task_id}")
             
             # 检查是否能处理此请求
@@ -320,7 +324,7 @@ class BaseAgent(AgentLifecycleInterface, AgentCollaborationInterface, AgentProce
             return response
             
         except Exception as e:
-            request_id = getattr(request, 'request_id', request.get('request_id', 'unknown')) if hasattr(request, 'get') or hasattr(request, 'request_id') else 'unknown'
+            request_id = getattr(request, 'request_id', 'unknown')
             self.logger.error(f"Error processing request {request_id}: {str(e)}")
             self._failed_requests += 1
             

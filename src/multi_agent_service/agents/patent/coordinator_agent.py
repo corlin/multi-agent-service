@@ -421,7 +421,7 @@ class PatentCoordinatorAgent(CoordinatorAgent):
                 self.logger.error(f"Sequential step failed for agent {agent_id}: {str(e)}")
                 error_result = AgentResponse(
                     agent_id=agent_id,
-                    agent_type=AgentType.CUSTOM,
+                    agent_type=AgentType.PATENT_COORDINATOR,
                     response_content=f"Agent {agent_id} 执行失败: {str(e)}",
                     confidence=0.0,
                     metadata={"error": str(e)}
@@ -477,7 +477,7 @@ class PatentCoordinatorAgent(CoordinatorAgent):
             if isinstance(result, Exception):
                 error_result = AgentResponse(
                     agent_id=agent_id,
-                    agent_type=AgentType.CUSTOM,
+                    agent_type=AgentType.PATENT_COORDINATOR,
                     response_content=f"Agent {agent_id} 执行失败: {str(result)}",
                     confidence=0.0,
                     metadata={"error": str(result)}
@@ -695,7 +695,7 @@ class PatentCoordinatorAgent(CoordinatorAgent):
         """创建错误响应."""
         return AgentResponse(
             agent_id=agent_id,
-            agent_type=AgentType.CUSTOM,
+            agent_type=AgentType.PATENT_COORDINATOR,
             response_content=f"❌ **Agent调用失败**\n\n**Agent**: {agent_id}\n**错误**: {error_message}\n\n请检查Agent状态或稍后重试。",
             confidence=0.0,
             collaboration_needed=False,
@@ -830,7 +830,7 @@ class PatentCoordinatorAgent(CoordinatorAgent):
         
         return AgentResponse(
             agent_id=agent_id,
-            agent_type=AgentType.CUSTOM,
+            agent_type=AgentType.PATENT_COORDINATOR,
             response_content=content,
             confidence=0.4,  # 简化响应有一定置信度
             collaboration_needed=True,
@@ -961,7 +961,7 @@ class PatentCoordinatorAgent(CoordinatorAgent):
         """创建错误响应."""
         return AgentResponse(
             agent_id=agent_id,
-            agent_type=AgentType.CUSTOM,
+            agent_type=AgentType.PATENT_COORDINATOR,
             response_content=f"调用 {agent_id} 时发生错误: {error_message}",
             confidence=0.0,
             collaboration_needed=False,
