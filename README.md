@@ -12,6 +12,8 @@
 - ⚙️ **灵活配置**: 支持动态配置和热更新
 - 🔥 **热重载**: 支持配置和智能体的热重载
 - 🛡️ **容错机制**: 完善的故障转移和异常处理
+- 🌐 **浏览器自动化**: 集成browser-use技术，支持Google Patents等网站的智能访问
+- 📊 **专利数据收集**: 支持多数据源的专利信息收集和分析
 
 ## 🛠️ 技术栈
 
@@ -23,6 +25,8 @@
 - **数据验证**: Pydantic
 - **日志系统**: 结构化JSON日志
 - **监控**: 内置性能指标收集
+- **浏览器自动化**: browser-use + Playwright
+- **专利数据**: PatentsView API + Google Patents
 
 ## 🚀 快速开始
 
@@ -469,3 +473,54 @@ uv run pytest tests/ --cov=src --cov-report=html
 ---
 
 **Multi-Agent LangGraph Service** - 让智能体协作变得简单高效！ 🚀
+#
+# 🔍 Google Patents Browser-Use 集成
+
+本项目已集成browser-use技术来优化Google Patents的数据收集功能。
+
+### 快速设置
+
+1. **安装browser-use依赖**
+```bash
+python setup_browser_use.py
+```
+
+2. **运行测试**
+```bash
+python test_google_patents_browser.py
+```
+
+3. **查看演示**
+```bash
+python demo_google_patents_browser.py
+```
+
+### 主要优势
+
+- ✅ **真实浏览器环境**: 完全支持JavaScript渲染
+- ✅ **反爬虫能力**: 模拟真实用户行为
+- ✅ **动态内容支持**: 处理AJAX和动态加载
+- ✅ **详细信息提取**: 深入专利详情页面
+
+### 使用示例
+
+```python
+from multi_agent_service.patent.services.google_patents_browser import GooglePatentsBrowserService
+
+async def collect_patents():
+    async with GooglePatentsBrowserService(headless=True) as browser_service:
+        patents = await browser_service.search_patents(
+            keywords=["artificial intelligence"],
+            limit=50,
+            date_range={"start_year": "2022", "end_year": "2024"}
+        )
+        return patents
+```
+
+### 详细文档
+
+查看 [Google Patents Browser-Use 集成指南](GOOGLE_PATENTS_BROWSER_USE_README.md) 获取完整的使用说明和配置选项。
+
+---
+
+*最后更新: 2024年12月*

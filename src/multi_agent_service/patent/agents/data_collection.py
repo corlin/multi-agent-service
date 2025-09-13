@@ -2,7 +2,9 @@
 
 import asyncio
 import hashlib
+import json
 import logging
+import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
@@ -33,9 +35,17 @@ class PatentDataCollectionAgent(PatentBaseAgent):
                 name='google_patents',
                 base_url='https://patents.google.com/api',
                 rate_limit=10,
-                timeout=30,
+                timeout=60,  # 增加超时时间
                 max_results=1000,
                 priority=1
+            ),
+            'google_patents_browser': PatentDataSource(
+                name='google_patents_browser',
+                base_url='https://patents.google.com',
+                rate_limit=5,
+                timeout=60,
+                max_results=1000,
+                priority=1  # 高优先级，因为更可靠
             ),
             'patent_public_api': PatentDataSource(
                 name='patent_public_api', 
@@ -50,6 +60,12 @@ class PatentDataCollectionAgent(PatentBaseAgent):
         # 数据源管理器
         self.data_source_manager = DataSourceManager()
         
+        # 中文关键词映射
+        self.chinese_keyword_mapping = self._load_chinese_keyword_mapping()
+        
+        # Google Patents Browser Service
+        self.google_patents_browser = None
+        
         # 注册数据源
         for name, config in self.data_sources_config.items():
             if name == 'google_patents':
@@ -61,6 +77,74 @@ class PatentDataCollectionAgent(PatentBaseAgent):
             self.data_source_manager.register_data_source(name, api_client)
         
         self.logger = logging.getLogger(f"{__name__}.PatentDataCollectionAgent")
+    
+    def _load_chinese_keyword_mapping(self) -> Dict[str, List[str]]:
+        """加载中文关键词到英文关键词的映射."""
+        try:
+            # 尝试从配置文件加载
+            config_file = "chinese_keywords_config.json"
+            if os.path.exists(config_file):
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    return config.get("关键词映射", {})
+        except Exception as e:
+            self.logger.warning(f"无法加载关键词配置文件: {e}，使用默认配置")
+        
+        # 默认映射（备用）
+        return {
+            "具身智能": ["embodied intelligence", "embodied AI", "physical AI", "robotics intelligence"],
+            "大语言模型": ["large language model", "LLM", "transformer", "GPT", "BERT", "language model"],
+            "客户细分": ["customer segmentation", "user profiling", "market segmentation", "customer analytics"],
+            "多模态": ["multimodal", "multi-modal", "cross-modal", "vision language"],
+            "推荐系统": ["recommendation system", "collaborative filtering", "personalization"],
+            "计算机视觉": ["computer vision", "image recognition", "object detection", "visual AI"],
+            "自然语言处理": ["natural language processing", "NLP", "text analysis", "language understanding"],
+            "深度学习": ["deep learning", "neural network", "artificial neural network"],
+            "机器学习": ["machine learning", "ML", "supervised learning", "unsupervised learning"],
+            "人工智能": ["artificial intelligence", "AI", "intelligent system"],
+            "知识图谱": ["knowledge graph", "knowledge base", "semantic network"],
+            "强化学习": ["reinforcement learning", "RL", "Q-learning", "policy gradient"],
+            "联邦学习": ["federated learning", "distributed learning", "privacy-preserving learning"],
+            "边缘计算": ["edge computing", "edge AI", "mobile computing", "distributed computing"],
+            "区块链": ["blockchain", "distributed ledger", "cryptocurrency", "smart contract"],
+            "物联网": ["Internet of Things", "IoT", "connected devices", "smart devices"],
+            "云计算": ["cloud computing", "distributed computing", "virtualization"],
+            "数据挖掘": ["data mining", "data analytics", "pattern recognition", "knowledge discovery"],
+            "图像处理": ["image processing", "digital image processing", "image analysis"],
+            "语音识别": ["speech recognition", "voice recognition", "automatic speech recognition", "ASR"],
+            "情感分析": ["sentiment analysis", "emotion recognition", "affective computing"],
+            "预测分析": ["predictive analytics", "forecasting", "predictive modeling"],
+            "异常检测": ["anomaly detection", "outlier detection", "fraud detection"],
+            "聚类分析": ["clustering", "cluster analysis", "unsupervised classification"],
+            "分类算法": ["classification", "supervised learning", "pattern classification"],
+            "回归分析": ["regression analysis", "linear regression", "predictive regression"],
+            "时间序列": ["time series", "temporal analysis", "sequential data"],
+            "优化算法": ["optimization algorithm", "mathematical optimization", "algorithmic optimization"],
+            "搜索算法": ["search algorithm", "information retrieval", "search engine"],
+            "排序算法": ["sorting algorithm", "ranking algorithm", "ordering algorithm"],
+            "加密技术": ["encryption", "cryptography", "data security", "cybersecurity"],
+            "隐私保护": ["privacy protection", "data privacy", "privacy-preserving", "differential privacy"]
+        }
+    
+    def _expand_keywords_with_chinese(self, keywords: List[str]) -> List[str]:
+        """扩展关键词列表，支持中文关键词映射."""
+        expanded_keywords = []
+        
+        for keyword in keywords:
+            # 添加原始关键词
+            expanded_keywords.append(keyword)
+            
+            # 如果是中文关键词，添加对应的英文关键词
+            if keyword in self.chinese_keyword_mapping:
+                expanded_keywords.extend(self.chinese_keyword_mapping[keyword])
+            
+            # 检查是否包含中文关键词的部分匹配
+            for chinese_key, english_keywords in self.chinese_keyword_mapping.items():
+                if chinese_key in keyword or keyword in chinese_key:
+                    expanded_keywords.extend(english_keywords)
+        
+        # 去重并返回
+        return list(set(expanded_keywords))
     
     async def can_handle_request(self, request) -> float:
         """判断是否能处理请求."""
@@ -177,6 +261,9 @@ class PatentDataCollectionAgent(PatentBaseAgent):
             if not await super()._initialize_specific():
                 return False
             
+            # 初始化Google Patents Browser Service
+            await self._initialize_google_patents_browser()
+            
             # 初始化数据源API客户端
             await self._initialize_data_source_apis()
             
@@ -189,6 +276,30 @@ class PatentDataCollectionAgent(PatentBaseAgent):
         except Exception as e:
             self.patent_logger.error(f"Error initializing patent data collection agent: {str(e)}")
             return False
+    
+    async def _initialize_google_patents_browser(self):
+        """初始化Google Patents Browser Service."""
+        try:
+            # 尝试导入Google Patents Browser Service
+            from ..services.google_patents_browser import GooglePatentsBrowserService
+            
+            # 创建服务实例
+            self.google_patents_browser = GooglePatentsBrowserService(
+                headless=True,
+                timeout=60
+            )
+            
+            # 初始化服务
+            await self.google_patents_browser.initialize()
+            
+            self.patent_logger.info("Google Patents Browser Service initialized successfully")
+            
+        except ImportError:
+            self.patent_logger.warning("Google Patents Browser Service not available, using fallback methods")
+            self.google_patents_browser = None
+        except Exception as e:
+            self.patent_logger.warning(f"Failed to initialize Google Patents Browser Service: {str(e)}")
+            self.google_patents_browser = None
     
     async def _initialize_data_source_apis(self):
         """初始化数据源API客户端."""
@@ -330,14 +441,37 @@ class PatentDataCollectionAgent(PatentBaseAgent):
         
         # 从请求内容中提取关键词
         if hasattr(request, 'content') and request.content:
-            # 简单的关键词提取逻辑
-            keywords = [word.strip() for word in request.content.split() if len(word.strip()) > 2][:5]
+            # 改进的关键词提取逻辑
+            content = request.content.lower()
+            
+            # 检查是否包含中文关键词
+            chinese_keywords_found = []
+            for chinese_key in self.chinese_keyword_mapping.keys():
+                if chinese_key in content:
+                    chinese_keywords_found.append(chinese_key)
+            
+            if chinese_keywords_found:
+                # 如果找到中文关键词，使用它们
+                keywords = chinese_keywords_found
+            else:
+                # 否则使用简单的分词提取
+                keywords = [word.strip() for word in request.content.split() if len(word.strip()) > 2][:5]
+        
+        # 确保有默认关键词
+        if not keywords:
+            keywords = ["技术专利"]
+        
+        # 优先使用Google Patents Browser Service
+        data_sources = ["google_patents_browser"] if self.google_patents_browser else []
+        data_sources.extend([name for name in self.data_sources_config.keys() if name != "google_patents_browser"])
         
         return PatentDataCollectionRequest(
             request_id=request.request_id,
-            keywords=keywords or ["技术专利"],
+            keywords=keywords,
             max_patents=100,  # 默认值
-            data_sources=list(self.data_sources_config.keys())
+            data_sources=data_sources,
+            parallel_sources=True,  # 启用并行收集
+            deduplication_enabled=True  # 启用去重
         )
     
     async def _process_patent_request_specific(self, request: PatentDataCollectionRequest) -> PatentDataCollectionResponse:
@@ -359,7 +493,11 @@ class PatentDataCollectionAgent(PatentBaseAgent):
                 # 并行收集多个数据源
                 collection_tasks = []
                 available_sources = [name for name in request.data_sources 
-                                   if name in self.data_sources_config and self.data_sources_config[name].enabled]
+                                   if name in self.data_sources_config]
+                
+                # 优先使用Google Patents Browser Service
+                if 'google_patents_browser' in available_sources and self.google_patents_browser:
+                    available_sources = ['google_patents_browser'] + [s for s in available_sources if s != 'google_patents_browser']
                 
                 for source_name in available_sources:
                     # 为每个数据源创建单独的请求
@@ -373,7 +511,7 @@ class PatentDataCollectionAgent(PatentBaseAgent):
                         ipc_classes=request.ipc_classes,
                         parallel_sources=False  # 避免递归
                     )
-                    task = self._collect_from_single_source(source_name, source_request)
+                    task = self._collect_from_single_source_with_retry(source_name, source_request)
                     collection_tasks.append(task)
                 
                 if not collection_tasks:
@@ -495,10 +633,29 @@ class PatentDataCollectionAgent(PatentBaseAgent):
         try:
             self.patent_logger.info(f"Collecting patents from {source_name}")
             
-            # 通过数据源管理器获取API客户端
-            if source_name in self.data_source_manager.data_sources:
+            # 扩展关键词（支持中文关键词）
+            expanded_keywords = self._expand_keywords_with_chinese(request.keywords)
+            self.patent_logger.info(f"Expanded keywords from {len(request.keywords)} to {len(expanded_keywords)}")
+            
+            patents = []
+            
+            # 优先使用Google Patents Browser Service
+            if source_name == 'google_patents_browser' and self.google_patents_browser:
+                patents = await self._collect_from_google_patents_browser(expanded_keywords, request)
+            elif source_name in self.data_source_manager.data_sources:
+                # 通过数据源管理器获取API客户端
                 api_client = self.data_source_manager.data_sources[source_name]
-                patents = await api_client.collect_patents(request)
+                # 创建修改后的请求，使用扩展的关键词
+                modified_request = PatentDataCollectionRequest(
+                    request_id=request.request_id,
+                    keywords=expanded_keywords,
+                    max_patents=request.max_patents,
+                    data_sources=[source_name],
+                    date_range=request.date_range,
+                    countries=request.countries,
+                    ipc_classes=request.ipc_classes
+                )
+                patents = await api_client.collect_patents(modified_request)
             else:
                 # 降级到模拟数据
                 source_config = self.data_sources_config.get(source_name)
@@ -510,7 +667,9 @@ class PatentDataCollectionAgent(PatentBaseAgent):
                 'source': source_name,
                 'patents': patents,
                 'processing_time': processing_time,
-                'status': 'success'
+                'status': 'success',
+                'keywords_used': len(expanded_keywords),
+                'original_keywords': len(request.keywords)
             }
             
         except Exception as e:
@@ -524,6 +683,114 @@ class PatentDataCollectionAgent(PatentBaseAgent):
                 'status': 'failed',
                 'error': str(e)
             }
+    
+    async def _collect_from_google_patents_browser(self, keywords: List[str], request: PatentDataCollectionRequest) -> List[Patent]:
+        """使用Google Patents Browser Service收集专利数据."""
+        try:
+            self.patent_logger.info(f"Using Google Patents Browser Service with {len(keywords)} keywords")
+            
+            # 使用Browser Service搜索专利
+            raw_patents = await self.google_patents_browser.search_patents(
+                keywords=keywords,
+                limit=request.max_patents,
+                date_range=request.date_range,
+                assignee=None  # 可以根据需要添加申请人过滤
+            )
+            
+            # 转换为Patent对象
+            patents = []
+            for raw_patent in raw_patents:
+                try:
+                    patent = self._convert_raw_patent_to_patent(raw_patent)
+                    patents.append(patent)
+                except Exception as e:
+                    self.patent_logger.warning(f"Failed to convert patent: {str(e)}")
+                    continue
+            
+            self.patent_logger.info(f"Successfully collected {len(patents)} patents from Google Patents Browser")
+            return patents
+            
+        except Exception as e:
+            self.patent_logger.error(f"Error collecting from Google Patents Browser: {str(e)}")
+            return []
+    
+    def _convert_raw_patent_to_patent(self, raw_patent: Dict[str, Any]) -> Patent:
+        """将原始专利数据转换为Patent对象."""
+        try:
+            # 解析日期
+            def parse_date(date_str):
+                if not date_str:
+                    return None
+                try:
+                    # 尝试多种日期格式
+                    for fmt in ['%Y-%m-%d', '%Y/%m/%d', '%m/%d/%Y', '%d/%m/%Y']:
+                        try:
+                            return datetime.strptime(date_str, fmt)
+                        except ValueError:
+                            continue
+                    return None
+                except:
+                    return None
+            
+            patent = Patent(
+                application_number=raw_patent.get('patent_number', ''),
+                title=raw_patent.get('title', ''),
+                abstract=raw_patent.get('abstract', ''),
+                applicants=raw_patent.get('applicants', []),
+                inventors=raw_patent.get('inventors', []),
+                application_date=parse_date(raw_patent.get('application_date')),
+                publication_date=parse_date(raw_patent.get('publication_date')),
+                ipc_classes=raw_patent.get('ipc_classes', []),
+                country=raw_patent.get('country', 'US'),
+                status=raw_patent.get('status', '已公开'),
+                url=raw_patent.get('url', ''),
+                source='google_patents_browser'
+            )
+            
+            return patent
+            
+        except Exception as e:
+            raise Exception(f"Failed to convert raw patent: {str(e)}")
+    
+    async def _collect_from_single_source_with_retry(self, source_name: str, request: PatentDataCollectionRequest) -> Dict[str, Any]:
+        """带重试机制的单数据源收集."""
+        max_retries = self.processing_config.get('max_retries', 3)
+        retry_delay = self.processing_config.get('retry_delay', 1.0)
+        
+        for attempt in range(max_retries + 1):
+            try:
+                result = await self._collect_from_single_source(source_name, request)
+                
+                # 如果成功或者是最后一次尝试，返回结果
+                if result['status'] == 'success' or attempt == max_retries:
+                    if attempt > 0:
+                        self.patent_logger.info(f"Successfully collected from {source_name} on attempt {attempt + 1}")
+                    return result
+                
+            except Exception as e:
+                if attempt == max_retries:
+                    self.patent_logger.error(f"Final attempt failed for {source_name}: {str(e)}")
+                    return {
+                        'source': source_name,
+                        'patents': [],
+                        'processing_time': 0,
+                        'status': 'failed',
+                        'error': str(e),
+                        'attempts': attempt + 1
+                    }
+                else:
+                    self.patent_logger.warning(f"Attempt {attempt + 1} failed for {source_name}: {str(e)}, retrying...")
+                    await asyncio.sleep(retry_delay * (attempt + 1))  # 指数退避
+        
+        # 这里不应该到达，但为了安全起见
+        return {
+            'source': source_name,
+            'patents': [],
+            'processing_time': 0,
+            'status': 'failed',
+            'error': 'Max retries exceeded',
+            'attempts': max_retries + 1
+        }
     
 
     
@@ -624,6 +891,14 @@ class PatentDataCollectionAgent(PatentBaseAgent):
         try:
             await super()._cleanup_specific()
             
+            # 关闭Google Patents Browser Service
+            if self.google_patents_browser:
+                try:
+                    await self.google_patents_browser.close()
+                    self.patent_logger.info("Google Patents Browser Service closed successfully")
+                except Exception as e:
+                    self.patent_logger.warning(f"Error closing Google Patents Browser Service: {str(e)}")
+            
             # 关闭数据源管理器
             await self.data_source_manager.close_all()
             
@@ -654,4 +929,53 @@ class PatentDataCollectionAgent(PatentBaseAgent):
         except Exception as e:
             base_metrics['data_source_stats'] = f"Error getting stats: {str(e)}"
         
+        # 添加中文关键词映射统计
+        base_metrics['chinese_keyword_mapping'] = {
+            'total_mappings': len(self.chinese_keyword_mapping),
+            'available_chinese_keywords': list(self.chinese_keyword_mapping.keys())[:10],  # 只显示前10个
+            'google_patents_browser_available': self.google_patents_browser is not None
+        }
+        
         return base_metrics
+    
+    async def get_supported_chinese_keywords(self) -> List[str]:
+        """获取支持的中文关键词列表."""
+        return list(self.chinese_keyword_mapping.keys())
+    
+    async def preview_keyword_expansion(self, keywords: List[str]) -> Dict[str, List[str]]:
+        """预览关键词扩展结果."""
+        result = {}
+        for keyword in keywords:
+            expanded = self._expand_keywords_with_chinese([keyword])
+            result[keyword] = expanded
+        return result
+    
+    async def test_google_patents_browser_connection(self) -> Dict[str, Any]:
+        """测试Google Patents Browser Service连接."""
+        if not self.google_patents_browser:
+            return {
+                'status': 'unavailable',
+                'message': 'Google Patents Browser Service not initialized'
+            }
+        
+        try:
+            # 执行一个简单的测试搜索
+            test_keywords = ["artificial intelligence"]
+            test_results = await self.google_patents_browser.search_patents(
+                keywords=test_keywords,
+                limit=1
+            )
+            
+            return {
+                'status': 'success',
+                'message': f'Successfully connected and found {len(test_results)} test results',
+                'test_keywords': test_keywords,
+                'results_count': len(test_results)
+            }
+            
+        except Exception as e:
+            return {
+                'status': 'failed',
+                'message': f'Connection test failed: {str(e)}',
+                'error': str(e)
+            }

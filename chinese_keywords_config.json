@@ -1,0 +1,259 @@
+{
+  "中文关键词映射配置": {
+    "说明": "此文件用于配置中文关键词到英文关键词的映射，支持专利搜索优化",
+    "版本": "1.0",
+    "更新日期": "2025-01-13"
+  },
+  "关键词映射": {
+    "具身智能": [
+      "embodied intelligence",
+      "embodied AI",
+      "physical AI",
+      "robotics intelligence",
+      "embodied cognition",
+      "physical intelligence"
+    ],
+    "大语言模型": [
+      "large language model",
+      "LLM",
+      "transformer",
+      "GPT",
+      "BERT",
+      "language model",
+      "generative pre-trained transformer",
+      "natural language generation"
+    ],
+    "客户细分": [
+      "customer segmentation",
+      "user profiling",
+      "market segmentation",
+      "customer analytics",
+      "user segmentation",
+      "demographic segmentation",
+      "behavioral segmentation"
+    ],
+    "多模态AI": [
+      "multimodal AI",
+      "multi-modal",
+      "cross-modal",
+      "vision language model",
+      "multimodal learning",
+      "multimodal fusion"
+    ],
+    "推荐系统": [
+      "recommendation system",
+      "collaborative filtering",
+      "content-based filtering",
+      "personalization",
+      "recommender system",
+      "recommendation engine"
+    ],
+    "计算机视觉": [
+      "computer vision",
+      "image recognition",
+      "object detection",
+      "visual AI",
+      "image processing",
+      "pattern recognition"
+    ],
+    "自然语言处理": [
+      "natural language processing",
+      "NLP",
+      "text analysis",
+      "language understanding",
+      "text mining",
+      "computational linguistics"
+    ],
+    "深度学习": [
+      "deep learning",
+      "neural network",
+      "artificial neural network",
+      "deep neural network",
+      "convolutional neural network",
+      "recurrent neural network"
+    ],
+    "机器学习": [
+      "machine learning",
+      "ML",
+      "supervised learning",
+      "unsupervised learning",
+      "statistical learning",
+      "predictive modeling"
+    ],
+    "人工智能": [
+      "artificial intelligence",
+      "AI",
+      "intelligent system",
+      "cognitive computing",
+      "machine intelligence"
+    ],
+    "知识图谱": [
+      "knowledge graph",
+      "knowledge base",
+      "semantic network",
+      "ontology",
+      "knowledge representation"
+    ],
+    "强化学习": [
+      "reinforcement learning",
+      "RL",
+      "Q-learning",
+      "policy gradient",
+      "deep reinforcement learning"
+    ],
+    "联邦学习": [
+      "federated learning",
+      "distributed learning",
+      "privacy-preserving learning",
+      "decentralized learning"
+    ],
+    "边缘计算": [
+      "edge computing",
+      "edge AI",
+      "mobile computing",
+      "distributed computing",
+      "fog computing"
+    ],
+    "区块链": [
+      "blockchain",
+      "distributed ledger",
+      "cryptocurrency",
+      "smart contract",
+      "decentralized system"
+    ],
+    "物联网": [
+      "Internet of Things",
+      "IoT",
+      "connected devices",
+      "smart devices",
+      "sensor network"
+    ],
+    "云计算": [
+      "cloud computing",
+      "distributed computing",
+      "virtualization",
+      "cloud services",
+      "serverless computing"
+    ],
+    "数据挖掘": [
+      "data mining",
+      "data analytics",
+      "pattern recognition",
+      "knowledge discovery",
+      "data science"
+    ],
+    "图像处理": [
+      "image processing",
+      "digital image processing",
+      "image analysis",
+      "image enhancement",
+      "computer graphics"
+    ],
+    "语音识别": [
+      "speech recognition",
+      "voice recognition",
+      "automatic speech recognition",
+      "ASR",
+      "speech processing"
+    ],
+    "情感分析": [
+      "sentiment analysis",
+      "emotion recognition",
+      "affective computing",
+      "opinion mining",
+      "mood analysis"
+    ],
+    "预测分析": [
+      "predictive analytics",
+      "forecasting",
+      "predictive modeling",
+      "time series prediction",
+      "trend analysis"
+    ],
+    "异常检测": [
+      "anomaly detection",
+      "outlier detection",
+      "fraud detection",
+      "intrusion detection",
+      "novelty detection"
+    ],
+    "聚类分析": [
+      "clustering",
+      "cluster analysis",
+      "unsupervised classification",
+      "data clustering",
+      "pattern clustering"
+    ],
+    "分类算法": [
+      "classification",
+      "supervised learning",
+      "pattern classification",
+      "machine classification",
+      "automated classification"
+    ],
+    "回归分析": [
+      "regression analysis",
+      "linear regression",
+      "predictive regression",
+      "statistical regression",
+      "regression modeling"
+    ],
+    "时间序列": [
+      "time series",
+      "temporal analysis",
+      "sequential data",
+      "time series analysis",
+      "temporal pattern"
+    ],
+    "优化算法": [
+      "optimization algorithm",
+      "mathematical optimization",
+      "algorithmic optimization",
+      "optimization method",
+      "optimization technique"
+    ],
+    "搜索算法": [
+      "search algorithm",
+      "information retrieval",
+      "search engine",
+      "search method",
+      "retrieval system"
+    ],
+    "排序算法": [
+      "sorting algorithm",
+      "ranking algorithm",
+      "ordering algorithm",
+      "sorting method",
+      "ranking system"
+    ],
+    "加密技术": [
+      "encryption",
+      "cryptography",
+      "data security",
+      "cybersecurity",
+      "information security"
+    ],
+    "隐私保护": [
+      "privacy protection",
+      "data privacy",
+      "privacy-preserving",
+      "differential privacy",
+      "privacy enhancement"
+    ]
+  },
+  "热门搜索组合": {
+    "AI核心技术": ["人工智能", "机器学习", "深度学习"],
+    "语言技术": ["大语言模型", "自然语言处理", "语音识别"],
+    "视觉技术": ["计算机视觉", "图像处理", "多模态AI"],
+    "商业应用": ["推荐系统", "客户细分", "预测分析"],
+    "新兴技术": ["具身智能", "联邦学习", "边缘计算"],
+    "基础设施": ["云计算", "区块链", "物联网"]
+  },
+  "使用说明": {
+    "1": "可以直接修改此文件来添加新的中文关键词映射",
+    "2": "每个中文关键词对应一个英文关键词数组",
+    "3": "英文关键词会用于实际的专利搜索",
+    "4": "建议包含同义词、缩写和相关术语",
+    "5": "热门搜索组合可用于批量搜索相关领域专利"
+  }
+}

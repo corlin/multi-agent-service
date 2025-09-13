@@ -20,6 +20,14 @@ from ...patent.config.patentsview_config import PatentsViewAPIConfig
 from ...patent.models.patentsview_data import PatentsViewSearchResult, PatentRecord
 from ...patent.models.requests import PatentAnalysisRequest
 
+# 导入browser-use相关模块
+try:
+    from ...patent.services.google_patents_browser import GooglePatentsBrowserService
+    BROWSER_USE_AVAILABLE = True
+except ImportError:
+    BROWSER_USE_AVAILABLE = False
+    GooglePatentsBrowserService = None
+
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +51,7 @@ class PatentDataCollectionAgent(PatentBaseAgent):
         self.patentsview_config = PatentsViewAPIConfig.from_env()
         self.patentsview_service = None
         
-        # 数据源配置 - 专注于 PatentsView API
+        # 数据源配置 - 支持多种数据源
         self.data_sources_config = {
             'patentsview_api': {
                 'base_url': self.patentsview_config.base_url,
@@ -51,6 +59,14 @@ class PatentDataCollectionAgent(PatentBaseAgent):
                 'timeout': self.patentsview_config.timeout,
                 'enabled': True,
                 'service_class': PatentsViewService
+            },
+            'google_patents_browser': {
+                'base_url': 'https://patents.google.com',
+                'rate_limit': 2,  # 更保守的速率限制
+                'timeout': 60,    # 浏览器操作需要更长时间
+                'enabled': BROWSER_USE_AVAILABLE,
+                'service_class': GooglePatentsBrowserService,
+                'headless': True
             }
         }
         
@@ -68,6 +84,12 @@ class PatentDataCollectionAgent(PatentBaseAgent):
             'priority': 1,
             'rate_limit': 5,
             'timeout': self.patentsview_config.timeout
+        }
+        self._patent_data_sources['google_patents_browser'] = {
+            'enabled': BROWSER_USE_AVAILABLE,
+            'priority': 2,
+            'rate_limit': 2,
+            'timeout': 60
         }
     
     async def can_handle_request(self, request: UserRequest) -> float:
@@ -105,6 +127,7 @@ class PatentDataCollectionAgent(PatentBaseAgent):
         base_capabilities = await super().get_capabilities()
         collection_capabilities = [
             "PatentsView API 专利数据收集",
+            "Google Patents 浏览器自动化收集",
             "多端点数据整合",
             "专利基础信息收集",
             "专利摘要和权利要求收集",
@@ -113,7 +136,9 @@ class PatentDataCollectionAgent(PatentBaseAgent):
             "数据标准化和清洗",
             "数据去重和质量控制",
             "批量数据处理",
-            "增量数据同步"
+            "增量数据同步",
+            "智能反爬虫处理",
+            "动态内容渲染支持"
         ]
         return base_capabilities + collection_capabilities
     
@@ -275,16 +300,27 @@ class PatentDataCollectionAgent(PatentBaseAgent):
             params["collection_type"] = "deep"
             params["quality_level"] = "high"
         
-        # 判断数据源偏好 - 默认使用 PatentsView
+        # 判断数据源偏好 - 支持多种数据源
         if "google" in content_lower:
-            params["sources"] = ["google_patents"]
+            if BROWSER_USE_AVAILABLE and ("浏览器" in content_lower or "browser" in content_lower):
+                params["sources"] = ["google_patents_browser"]
+            else:
+                params["sources"] = ["google_patents_browser", "patentsview_api"]
         elif "cnipa" in content_lower or "中国" in content_lower:
             params["sources"] = ["cnipa_api"]
         elif "patentsview" in content_lower or "美国" in content_lower:
             params["sources"] = ["patentsview_api"]
+        elif "浏览器" in content_lower or "browser" in content_lower:
+            if BROWSER_USE_AVAILABLE:
+                params["sources"] = ["google_patents_browser"]
+            else:
+                params["sources"] = ["patentsview_api"]
         else:
-            # 默认使用 PatentsView API
-            params["sources"] = ["patentsview_api"]
+            # 默认使用多个数据源
+            available_sources = ["patentsview_api"]
+            if BROWSER_USE_AVAILABLE:
+                available_sources.append("google_patents_browser")
+            params["sources"] = available_sources
         
         # 提取数量限制
         limit_match = re.search(r'(\d+).*?(个|条|件)', content)
@@ -338,16 +374,21 @@ class PatentDataCollectionAgent(PatentBaseAgent):
             patents_data = self._convert_patentsview_to_standard_format(patentsview_data)
             results["patentsview_api"] = patents_data
             
-            # 如果启用了其他数据源，可以在这里添加
+            # 处理其他数据源
             for source in collection_params["sources"]:
                 if (source != "patentsview_api" and 
                     source in self.data_sources_config and 
                     self.data_sources_config[source]["enabled"]):
                     
-                    # 为其他数据源保留原有的收集逻辑
                     try:
-                        source_data = await self._collect_from_source(source, collection_params)
-                        results[source] = source_data or []
+                        if source == "google_patents_browser":
+                            # 使用浏览器自动化收集Google Patents数据
+                            browser_data = await self._collect_from_google_patents_browser(collection_params)
+                            results[source] = browser_data or []
+                        else:
+                            # 为其他数据源保留原有的收集逻辑
+                            source_data = await self._collect_from_source(source, collection_params)
+                            results[source] = source_data or []
                     except Exception as e:
                         self.logger.error(f"Collection failed for {source}: {str(e)}")
                         results[source] = []
@@ -1039,3 +1080,133 @@ class PatentDataCollectionAgent(PatentBaseAgent):
                     integrated_data["errors"].append(result["error"])
         
         return integrated_data
+    
+    async def _collect_from_google_patents_browser(self, collection_params: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """使用浏览器自动化从Google Patents收集数据."""
+        if not BROWSER_USE_AVAILABLE:
+            self.logger.warning("Browser-use not available, skipping Google Patents browser collection")
+            return []
+        
+        try:
+            keywords = collection_params.get("keywords", [])
+            limit = collection_params.get("limit", 100)
+            date_range = collection_params.get("date_range")
+            
+            self.logger.info(f"Starting Google Patents browser collection with keywords: {keywords}")
+            
+            # 创建浏览器服务实例
+            async with GooglePatentsBrowserService(headless=True, timeout=60) as browser_service:
+                # 执行搜索
+                patents_data = await browser_service.search_patents(
+                    keywords=keywords,
+                    limit=limit,
+                    date_range=date_range
+                )
+                
+                # 转换为标准格式
+                standard_patents = self._convert_browser_data_to_standard_format(patents_data)
+                
+                self.logger.info(f"Collected {len(standard_patents)} patents from Google Patents browser")
+                return standard_patents
+                
+        except Exception as e:
+            self.logger.error(f"Error collecting from Google Patents browser: {str(e)}")
+            return []
+    
+    def _convert_browser_data_to_standard_format(self, patents_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """将浏览器收集的数据转换为标准格式."""
+        standard_patents = []
+        
+        try:
+            for patent_data in patents_data:
+                # 转换为标准格式
+                standard_patent = {
+                    "patent_id": patent_data.get("patent_id", ""),
+                    "patent_number": patent_data.get("patent_number", ""),
+                    "title": patent_data.get("title", "未知标题"),
+                    "abstract": patent_data.get("abstract", ""),
+                    "applicants": patent_data.get("applicants", []),
+                    "inventors": patent_data.get("inventors", []),
+                    "application_date": patent_data.get("application_date", ""),
+                    "publication_date": patent_data.get("publication_date", ""),
+                    "ipc_classes": patent_data.get("ipc_classes", []),
+                    "cpc_classes": patent_data.get("cpc_classes", []),
+                    "country": patent_data.get("country", "US"),
+                    "status": patent_data.get("status", "已公开"),
+                    "source": "google_patents_browser",
+                    "collected_at": patent_data.get("collected_at", datetime.now().isoformat()),
+                    "patent_type": patent_data.get("patent_type", "utility"),
+                    "url": patent_data.get("url", "")
+                }
+                
+                # 添加权利要求信息（如果有）
+                if "claims" in patent_data:
+                    standard_patent["claims"] = patent_data["claims"]
+                
+                # 添加摘要文本（如果有）
+                if "summary_text" in patent_data:
+                    standard_patent["summary_text"] = patent_data["summary_text"]
+                
+                standard_patents.append(standard_patent)
+            
+            self.logger.info(f"Converted {len(standard_patents)} browser patents to standard format")
+            return standard_patents
+            
+        except Exception as e:
+            self.logger.error(f"Error converting browser data: {str(e)}")
+            return []
+    
+    async def _enhance_patents_with_browser_details(self, patents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """使用浏览器自动化增强专利详细信息."""
+        if not BROWSER_USE_AVAILABLE:
+            return patents
+        
+        enhanced_patents = []
+        
+        try:
+            async with GooglePatentsBrowserService(headless=True, timeout=60) as browser_service:
+                for patent in patents:
+                    try:
+                        # 如果专利有URL，获取详细信息
+                        patent_url = patent.get("url")
+                        if patent_url and "patents.google.com" in patent_url:
+                            details = await browser_service.get_patent_details(patent_url)
+                            if details:
+                                # 合并详细信息
+                                enhanced_patent = patent.copy()
+                                enhanced_patent.update(details)
+                                enhanced_patents.append(enhanced_patent)
+                            else:
+                                enhanced_patents.append(patent)
+                        else:
+                            enhanced_patents.append(patent)
+                        
+                        # 防止过快请求
+                        await asyncio.sleep(1)
+                        
+                    except Exception as e:
+                        self.logger.warning(f"Error enhancing patent details: {str(e)}")
+                        enhanced_patents.append(patent)
+            
+            return enhanced_patents
+            
+        except Exception as e:
+            self.logger.error(f"Error in patent enhancement: {str(e)}")
+            return patents
+    
+    def _get_browser_collection_status(self) -> Dict[str, Any]:
+        """获取浏览器收集功能状态."""
+        return {
+            "browser_use_available": BROWSER_USE_AVAILABLE,
+            "google_patents_browser_enabled": (
+                BROWSER_USE_AVAILABLE and 
+                self.data_sources_config.get("google_patents_browser", {}).get("enabled", False)
+            ),
+            "supported_features": [
+                "动态内容渲染",
+                "JavaScript执行",
+                "反爬虫处理",
+                "真实浏览器环境",
+                "详细页面信息提取"
+            ] if BROWSER_USE_AVAILABLE else []
+        }
