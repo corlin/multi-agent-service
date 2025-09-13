@@ -1490,125 +1490,537 @@ class CNKIClient:
 
 
 class BochaAIClient:
-    """博查AI搜索客户端，集成Web搜索和AI智能分析."""
+    """博查AI搜索客户端，基于官方API文档实现，优化版本."""
     
     def __init__(self):
-        self.base_url = "https://api.bocha.ai"
-        self.web_search_url = "https://api.bocha.ai/web/search"
-        self.ai_search_url = "https://api.bocha.ai/ai/search"
-        self.timeout = 25
-        self.rate_limit = 8  # 每秒最多8个请求
+        # API端点配置
+        self.base_url = "https://api.bochaai.com"
+        self.web_search_url = f"{self.base_url}/v1/web-search"
+        self.ai_search_url = f"{self.base_url}/v1/ai-search"
+        self.agent_search_url = f"{self.base_url}/v1/agent-search"
+        self.rerank_url = f"{self.base_url}/v1/rerank"
+        
+        # 性能配置
+        self.timeout = 30
+        self.rate_limit = 10  # 每秒最多10个请求
         self.last_request_time = 0
         self.session = None
         
-        # API配置
+        # 初始化日志
+        self.logger = logging.getLogger(f"{__name__}.BochaAIClient")
+        
+        # 直接从环境变量获取API密钥
+        self.api_key = self._get_api_key()
+        
+        # API配置优化
         self.api_config = {
             "web_search": {
                 "enabled": True,
-                "max_results": 20,
-                "timeout": 20,
-                "regions": ["cn", "global"],
-                "content_types": ["news", "articles", "reports"]
+                "max_results": 50,
+                "timeout": 25,
+                "summary": True,
+                "freshness": "noLimit",
+                "include_images": True,
+                "retry_count": 2
             },
             "ai_search": {
                 "enabled": True,
-                "max_results": 10,
+                "max_results": 20,
                 "timeout": 30,
-                "analysis_depth": "medium",
-                "include_reasoning": True
+                "answer": True,
+                "stream": False,
+                "include_sources": True,
+                "retry_count": 2
+            },
+            "agent_search": {
+                "enabled": True,
+                "available_agents": {
+                    "academic": "bocha-scholar-agent",    # 学术搜索
+                    "patent": "bocha-scholar-agent",      # 专利搜索也用学术Agent
+                    "company": "bocha-company-agent",     # 企业搜索
+                    "document": "bocha-wenku-agent",      # 文库搜索
+                    "general": "bocha-scholar-agent"      # 通用搜索
+                },
+                "timeout": 35,
+                "retry_count": 1
+            },
+            "rerank": {
+                "enabled": True,
+                "model": "gte-rerank",
+                "top_n": 15,
+                "timeout": 20,
+                "return_documents": False
             }
         }
         
-        # 搜索质量评估配置
+        # 搜索质量评估配置优化
         self.quality_config = {
-            "min_content_length": 100,
-            "max_content_length": 5000,
-            "relevance_threshold": 0.6,
-            "freshness_weight": 0.3
+            "min_content_length": 30,
+            "max_content_length": 10000,
+            "relevance_threshold": 0.4,
+            "freshness_weight": 0.25,
+            "authority_weight": 0.35,
+            "completeness_weight": 0.15,
+            "diversity_threshold": 0.7
+        }
+        
+        # 性能统计
+        self.stats = {
+            "total_requests": 0,
+            "successful_requests": 0,
+            "failed_requests": 0,
+            "cache_hits": 0,
+            "api_errors": {},
+            "average_response_time": 0.0
+        }
+    
+    def _get_api_key(self) -> str:
+        """从环境变量获取API密钥，支持多种获取方式和验证."""
+        import os
+        from pathlib import Path
+        
+        # 优先级顺序获取API密钥
+        api_key_sources = [
+            "BOCHA_AI_API_KEY",           # 主要环境变量
+            "BOCHAAI_API_KEY",            # 备用环境变量1
+            "BOCHA_API_KEY",              # 备用环境变量2
+            "BOCHA_AI_TOKEN",             # 备用环境变量3
+        ]
+        
+        # 1. 从环境变量获取
+        for env_var in api_key_sources:
+            api_key = os.getenv(env_var)
+            if api_key and api_key.strip():
+                api_key = api_key.strip()
+                if self._validate_api_key_format(api_key):
+                    self.logger.info(f"✅ API密钥已从环境变量 {env_var} 成功获取")
+                    return api_key
+                else:
+                    self.logger.warning(f"⚠️ 环境变量 {env_var} 中的API密钥格式无效")
+        
+        # 2. 尝试从.env文件直接读取（作为备选方案）
+        try:
+            env_file_paths = [
+                Path(".env"),
+                Path("../.env"),
+                Path("../../.env")
+            ]
+            
+            for env_path in env_file_paths:
+                if env_path.exists():
+                    api_key = self._read_api_key_from_file(env_path)
+                    if api_key:
+                        self.logger.info(f"✅ API密钥已从文件 {env_path} 获取")
+                        return api_key
+                        
+        except Exception as e:
+            self.logger.debug(f"从.env文件读取API密钥失败: {str(e)}")
+        
+        # 3. 使用默认密钥（最后的备选方案）
+        default_key = "skhello"
+        self.logger.warning("🔑 未找到有效的博查AI API密钥，使用默认密钥")
+        self.logger.info("💡 建议设置环境变量: BOCHA_AI_API_KEY=your_api_key")
+        
+        return default_key
+    
+    def _validate_api_key_format(self, api_key: str) -> bool:
+        """验证API密钥格式是否正确."""
+        if not api_key:
+            return False
+        
+        # 博查AI密钥格式验证
+        # 通常以 sk- 开头，长度在30-50字符之间
+        if not api_key.startswith("sk-"):
+            return False
+        
+        if len(api_key) < 20 or len(api_key) > 100:
+            return False
+        
+        # 检查是否包含有效字符（字母、数字、连字符）
+        import re
+        if not re.match(r'^sk-[a-zA-Z0-9\-_]+$', api_key):
+            return False
+        
+        return True
+    
+    def _read_api_key_from_file(self, file_path):
+        """从.env文件中读取API密钥."""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith('BOCHA_AI_API_KEY='):
+                        api_key = line.split('=', 1)[1].strip()
+                        # 移除可能的引号
+                        api_key = api_key.strip('"\'')
+                        if self._validate_api_key_format(api_key):
+                            return api_key
+            return None
+        except Exception as e:
+            self.logger.debug(f"读取文件 {file_path} 失败: {str(e)}")
+            return None
+    
+    def get_api_key_info(self) -> Dict[str, Any]:
+        """获取API密钥相关信息（用于调试和状态检查）."""
+        import os
+        
+        info = {
+            "api_key_configured": bool(self.api_key),
+            "api_key_valid_format": self._validate_api_key_format(self.api_key) if self.api_key else False,
+            "api_key_length": len(self.api_key) if self.api_key else 0,
+            "api_key_prefix": self.api_key[:10] + "..." if self.api_key and len(self.api_key) > 10 else self.api_key,
+            "environment_variables": {},
+            "is_default_key": self.api_key == "sk-57e5481fb6954679ad0b58043fb9f963"
+        }
+        
+        # 检查环境变量状态
+        env_vars = ["BOCHA_AI_API_KEY", "BOCHAAI_API_KEY", "BOCHA_API_KEY", "BOCHA_AI_TOKEN"]
+        for env_var in env_vars:
+            value = os.getenv(env_var)
+            info["environment_variables"][env_var] = {
+                "exists": bool(value),
+                "length": len(value) if value else 0,
+                "valid_format": self._validate_api_key_format(value) if value else False
+            }
+        
+        return info
+    
+    def get_api_status(self) -> Dict[str, Any]:
+        """获取API状态信息，包含详细的密钥和配置信息."""
+        api_key_info = self.get_api_key_info()
+        
+        return {
+            "api_key_info": api_key_info,
+            "api_key_configured": api_key_info["api_key_configured"],
+            "api_key_valid": api_key_info["api_key_valid_format"],
+            "api_key_source": "environment_variable" if not api_key_info["is_default_key"] else "default",
+            "base_url": self.base_url,
+            "endpoints": {
+                "web_search": self.web_search_url,
+                "ai_search": self.ai_search_url,
+                "agent_search": self.agent_search_url,
+                "rerank": self.rerank_url
+            },
+            "config": self.api_config,
+            "stats": self.stats,
+            "health": {
+                "rate_limit": f"{self.rate_limit} requests/second",
+                "timeout": f"{self.timeout} seconds",
+                "session_active": self.session is not None
+            }
         }
     
     async def search(self, keywords: List[str], search_type: str = "general", limit: int = 20) -> List[Dict[str, Any]]:
-        """执行博查AI搜索."""
+        """执行博查AI搜索，基于官方API，优化版本."""
+        start_time = asyncio.get_event_loop().time()
+        
         try:
-            # 速率限制
+            # 更新统计
+            self.stats["total_requests"] += 1
+            
+            # 验证API密钥
+            if not self._validate_api_key():
+                self.logger.error("API密钥无效，使用降级搜索")
+                return await self._get_fallback_results(keywords, search_type, limit)
+            
+            # 速率限制检查
             await self._rate_limit_check()
             
-            # 并行执行Web搜索和AI搜索
-            web_results, ai_results = await asyncio.gather(
-                self._web_search(keywords, search_type, limit // 2),
-                self._ai_search(keywords, search_type, limit // 2),
-                return_exceptions=True
+            # 构建搜索查询
+            query = self._build_optimized_query(keywords, search_type)
+            
+            # 智能搜索策略选择
+            search_strategy = self._select_search_strategy(search_type, limit)
+            
+            # 执行并行搜索
+            search_results = await self._execute_smart_parallel_search(query, search_strategy)
+            
+            # 结果处理和优化
+            optimized_results = await self._process_and_optimize_results(
+                query, search_results, limit
             )
             
-            # 处理异常结果
-            if isinstance(web_results, Exception):
-                logger.error(f"Web search failed: {str(web_results)}")
-                web_results = []
+            # 更新成功统计
+            self.stats["successful_requests"] += 1
+            duration = asyncio.get_event_loop().time() - start_time
+            self._update_response_time(duration)
             
-            if isinstance(ai_results, Exception):
-                logger.error(f"AI search failed: {str(ai_results)}")
-                ai_results = []
+            self.logger.info(
+                f"博查AI搜索完成: {len(optimized_results)} 个结果, "
+                f"查询: '{query}', 耗时: {duration:.2f}s"
+            )
             
-            # 合并和优化结果
-            all_results = web_results + ai_results
-            optimized_results = await self._optimize_results(all_results, keywords)
-            
-            logger.info(f"Bocha AI search completed: {len(optimized_results)} results for keywords: {keywords}")
-            return optimized_results[:limit]
+            return optimized_results
             
         except Exception as e:
-            logger.error(f"Bocha AI search failed: {str(e)}")
+            # 更新失败统计
+            self.stats["failed_requests"] += 1
+            error_type = type(e).__name__
+            self.stats["api_errors"][error_type] = self.stats["api_errors"].get(error_type, 0) + 1
+            
+            self.logger.error(f"博查AI搜索失败: {str(e)}")
+            
             # 返回降级结果
             return await self._get_fallback_results(keywords, search_type, limit)
     
+    def _validate_api_key(self) -> bool:
+        """验证API密钥是否可用（使用更严格的验证）."""
+        return self._validate_api_key_format(self.api_key)
+    
+    def _build_optimized_query(self, keywords: List[str], search_type: str) -> str:
+        """构建优化的搜索查询."""
+        base_query = " ".join(keywords)
+        
+        # 根据搜索类型添加优化关键词
+        type_enhancements = {
+            "patent": " 专利 技术 发明 申请",
+            "academic": " 研究 论文 学术 科研",
+            "company": " 企业 公司 商业",
+            "news": " 新闻 资讯 动态 最新",
+            "document": " 文档 资料 报告"
+        }
+        
+        enhancement = type_enhancements.get(search_type, "")
+        return f"{base_query}{enhancement}".strip()
+    
+    def _select_search_strategy(self, search_type: str, limit: int) -> Dict[str, Any]:
+        """智能选择搜索策略."""
+        strategies = {
+            "academic": {
+                "use_agent": True,
+                "use_ai": True,
+                "use_web": False,
+                "agent_weight": 0.6,
+                "ai_weight": 0.4
+            },
+            "patent": {
+                "use_agent": True,
+                "use_ai": True,
+                "use_web": True,
+                "agent_weight": 0.5,
+                "ai_weight": 0.3,
+                "web_weight": 0.2
+            },
+            "company": {
+                "use_agent": True,
+                "use_ai": False,
+                "use_web": True,
+                "agent_weight": 0.7,
+                "web_weight": 0.3
+            },
+            "general": {
+                "use_agent": False,
+                "use_ai": True,
+                "use_web": True,
+                "ai_weight": 0.6,
+                "web_weight": 0.4
+            }
+        }
+        
+        strategy = strategies.get(search_type, strategies["general"])
+        strategy["limit"] = limit
+        strategy["search_type"] = search_type
+        
+        return strategy
+    
+    async def _execute_smart_parallel_search(self, query: str, strategy: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
+        """执行智能并行搜索."""
+        tasks = []
+        task_names = []
+        
+        limit = strategy["limit"]
+        
+        # 根据策略创建搜索任务
+        if strategy.get("use_web", False):
+            web_limit = int(limit * strategy.get("web_weight", 0.3))
+            tasks.append(self._web_search_with_retry(query, strategy["search_type"], web_limit))
+            task_names.append("web")
+        
+        if strategy.get("use_ai", False):
+            ai_limit = int(limit * strategy.get("ai_weight", 0.4))
+            tasks.append(self._ai_search_with_retry(query, strategy["search_type"], ai_limit))
+            task_names.append("ai")
+        
+        if strategy.get("use_agent", False):
+            agent_limit = int(limit * strategy.get("agent_weight", 0.5))
+            tasks.append(self._agent_search_with_retry(query, strategy["search_type"], agent_limit))
+            task_names.append("agent")
+        
+        # 并行执行所有任务
+        if not tasks:
+            return {}
+        
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # 处理结果
+        search_results = {}
+        for i, (task_name, result) in enumerate(zip(task_names, results)):
+            if isinstance(result, Exception):
+                self.logger.warning(f"{task_name} 搜索失败: {str(result)}")
+                search_results[task_name] = []
+            else:
+                search_results[task_name] = result or []
+        
+        return search_results
+    
+    async def _process_and_optimize_results(self, query: str, search_results: Dict[str, List[Dict[str, Any]]], limit: int) -> List[Dict[str, Any]]:
+        """处理和优化搜索结果."""
+        # 合并所有结果
+        all_results = []
+        for source, results in search_results.items():
+            for result in results:
+                result["search_source"] = source
+                all_results.append(result)
+        
+        if not all_results:
+            return []
+        
+        # 去重
+        deduplicated_results = await self._simple_deduplicate_results(all_results)
+        
+        # 语义重排序（如果结果足够多且启用）
+        if len(deduplicated_results) > 3 and self.api_config["rerank"]["enabled"]:
+            try:
+                reranked_results = await self._rerank_results(query, deduplicated_results)
+                if reranked_results:
+                    deduplicated_results = reranked_results
+            except Exception as e:
+                self.logger.warning(f"语义重排序失败，使用原始排序: {str(e)}")
+        
+        # 质量评估和最终排序
+        final_results = await self._optimize_results(deduplicated_results, [])
+        
+        # 简单的多样性优化（取前N个不同来源的结果）
+        if len(final_results) > 5:
+            final_results = self._simple_diversity_optimization(final_results)
+        
+        return final_results[:limit]
+    
+    def _update_response_time(self, duration: float):
+        """更新平均响应时间."""
+        if self.stats["successful_requests"] == 1:
+            self.stats["average_response_time"] = duration
+        else:
+            # 指数移动平均
+            alpha = 0.1
+            self.stats["average_response_time"] = (
+                (1 - alpha) * self.stats["average_response_time"] + 
+                alpha * duration
+            )
+    
     async def _rate_limit_check(self):
-        """检查速率限制."""
+        """检查速率限制，优化版本."""
         import time
         current_time = time.time()
         time_since_last = current_time - self.last_request_time
         
-        if time_since_last < (1.0 / self.rate_limit):
-            sleep_time = (1.0 / self.rate_limit) - time_since_last
+        min_interval = 1.0 / self.rate_limit
+        if time_since_last < min_interval:
+            sleep_time = min_interval - time_since_last
             await asyncio.sleep(sleep_time)
         
         self.last_request_time = time.time()
     
-    async def _web_search(self, keywords: List[str], search_type: str, limit: int) -> List[Dict[str, Any]]:
-        """执行Web搜索."""
+    async def _web_search_with_retry(self, query: str, search_type: str, limit: int) -> List[Dict[str, Any]]:
+        """带重试机制的Web搜索."""
+        retry_count = self.api_config["web_search"]["retry_count"]
+        
+        for attempt in range(retry_count + 1):
+            try:
+                return await self._web_search(query, search_type, limit)
+            except Exception as e:
+                if attempt == retry_count:
+                    self.logger.error(f"Web搜索重试{retry_count}次后仍失败: {str(e)}")
+                    return await self._get_mock_web_results(query, limit)
+                else:
+                    self.logger.warning(f"Web搜索第{attempt + 1}次尝试失败，重试中: {str(e)}")
+                    await asyncio.sleep(1 * (attempt + 1))  # 指数退避
+        
+        return []
+    
+    async def _ai_search_with_retry(self, query: str, search_type: str, limit: int) -> List[Dict[str, Any]]:
+        """带重试机制的AI搜索."""
+        retry_count = self.api_config["ai_search"]["retry_count"]
+        
+        for attempt in range(retry_count + 1):
+            try:
+                return await self._ai_search(query, search_type, limit)
+            except Exception as e:
+                if attempt == retry_count:
+                    self.logger.error(f"AI搜索重试{retry_count}次后仍失败: {str(e)}")
+                    return await self._get_mock_ai_results(query, limit)
+                else:
+                    self.logger.warning(f"AI搜索第{attempt + 1}次尝试失败，重试中: {str(e)}")
+                    await asyncio.sleep(2 * (attempt + 1))  # 指数退避
+        
+        return []
+    
+    async def _agent_search_with_retry(self, query: str, search_type: str, limit: int) -> List[Dict[str, Any]]:
+        """带重试机制的Agent搜索."""
+        retry_count = self.api_config["agent_search"]["retry_count"]
+        
+        for attempt in range(retry_count + 1):
+            try:
+                return await self._agent_search(query, search_type, limit)
+            except Exception as e:
+                if attempt == retry_count:
+                    self.logger.warning(f"Agent搜索重试{retry_count}次后仍失败: {str(e)}")
+                    return []  # Agent搜索失败不提供降级结果
+                else:
+                    self.logger.warning(f"Agent搜索第{attempt + 1}次尝试失败，重试中: {str(e)}")
+                    await asyncio.sleep(1.5 * (attempt + 1))  # 指数退避
+        
+        return []
+    
+    async def _web_search(self, query: str, search_type: str, limit: int) -> List[Dict[str, Any]]:
+        """执行Web搜索，基于博查AI Web Search API."""
         try:
             if not self.session:
                 self.session = aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=self.timeout),
-                    headers={
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                        "Accept": "application/json, text/plain, */*",
-                        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"
-                    }
+                    timeout=aiohttp.ClientTimeout(total=self.timeout)
                 )
             
-            # 构建搜索查询
-            query = self._build_web_query(keywords, search_type)
+            # 构建API请求参数
+            params = {
+                "query": query,
+                "freshness": self.api_config["web_search"]["freshness"],
+                "summary": self.api_config["web_search"]["summary"],
+                "count": min(limit, self.api_config["web_search"]["max_results"])
+            }
             
-            # 尝试真实API调用
-            try:
-                real_results = await self._real_web_search_api(query, limit)
-                if real_results:
-                    processed_results = self._process_web_results(real_results)
-                    return processed_results
-            except Exception as e:
-                logger.warning(f"Real web search API failed, using enhanced mock: {str(e)}")
+            # 根据搜索类型调整参数
+            if search_type == "patent":
+                params["query"] += " 专利 技术 发明"
+            elif search_type == "academic":
+                params["query"] += " 研究 论文 学术"
             
-            # 使用增强的模拟API调用
-            results = await self._enhanced_mock_web_search_api(query, limit)
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
             
-            # 处理Web搜索结果
-            processed_results = self._process_web_results(results)
-            
-            return processed_results
-            
+            async with self.session.post(
+                self.web_search_url, 
+                json=params, 
+                headers=headers
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return self._parse_web_search_response(data)
+                elif response.status == 401:
+                    logger.error("Bocha AI authentication failed - check API key")
+                    return await self._get_mock_web_results(query, limit)
+                elif response.status == 429:
+                    logger.warning("Bocha AI rate limit exceeded")
+                    await asyncio.sleep(2)
+                    return await self._get_mock_web_results(query, limit)
+                else:
+                    logger.error(f"Bocha AI web search returned status {response.status}")
+                    return await self._get_mock_web_results(query, limit)
+                    
         except Exception as e:
             logger.error(f"Web search failed: {str(e)}")
-            return []
+            return await self._get_mock_web_results(query, limit)
     
     async def _real_web_search_api(self, query: Dict[str, Any], limit: int) -> Optional[List[Dict[str, Any]]]:
         """尝试真实的博查AI Web搜索API调用."""
@@ -1655,65 +2067,104 @@ class BochaAIClient:
         return os.getenv("BOCHA_AI_API_KEY")
     
     def _parse_web_search_response(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """解析Web搜索API响应."""
+        """解析Web搜索API响应，基于博查AI API格式."""
         results = []
         
-        items = data.get("results", []) or data.get("items", []) or data.get("data", [])
-        
-        for item in items:
-            result = {
-                "title": item.get("title", ""),
-                "url": item.get("url", "") or item.get("link", ""),
-                "content": item.get("content", "") or item.get("snippet", "") or item.get("description", ""),
-                "summary": item.get("summary", "") or item.get("excerpt", ""),
-                "publish_date": item.get("publish_date", "") or item.get("date", "") or item.get("timestamp", ""),
-                "source_domain": item.get("domain", "") or item.get("source", ""),
-                "content_type": item.get("type", "article"),
-                "region": item.get("region", "global"),
-                "relevance_score": float(item.get("relevance", 0.5)),
-                "authority_score": float(item.get("authority", 0.5)),
-                "freshness_score": float(item.get("freshness", 0.5))
-            }
-            results.append(result)
+        # 根据博查AI API文档解析响应
+        if data.get("code") == 200:
+            search_data = data.get("data", {})
+            web_pages = search_data.get("webPages", {})
+            web_results = web_pages.get("value", [])
+            
+            for item in web_results:
+                result = {
+                    "title": item.get("name", ""),
+                    "url": item.get("url", ""),
+                    "content": item.get("snippet", ""),
+                    "summary": item.get("summary", ""),
+                    "publish_date": item.get("datePublished", "") or item.get("dateLastCrawled", ""),
+                    "source_domain": item.get("siteName", ""),
+                    "site_icon": item.get("siteIcon", ""),
+                    "content_type": "webpage",
+                    "language": item.get("language", "zh-CN"),
+                    "relevance_score": 0.7,  # 默认相关性
+                    "authority_score": 0.6,
+                    "freshness_score": self._calculate_freshness_score(item.get("datePublished", "")),
+                    "source": "bocha_web_search"
+                }
+                results.append(result)
+            
+            # 处理图片结果
+            images = search_data.get("images", {})
+            if images and images.get("value"):
+                for img in images.get("value", [])[:3]:  # 最多3张图片
+                    result = {
+                        "title": f"图片: {img.get('name', '相关图片')}",
+                        "url": img.get("hostPageUrl", ""),
+                        "content": f"图片内容: {img.get('name', '')}",
+                        "summary": "",
+                        "image_url": img.get("contentUrl", ""),
+                        "thumbnail_url": img.get("thumbnailUrl", ""),
+                        "content_type": "image",
+                        "relevance_score": 0.5,
+                        "authority_score": 0.4,
+                        "freshness_score": 0.5,
+                        "source": "bocha_image_search"
+                    }
+                    results.append(result)
         
         return results
     
-    async def _ai_search(self, keywords: List[str], search_type: str, limit: int) -> List[Dict[str, Any]]:
-        """执行AI智能搜索."""
+    async def _ai_search(self, query: str, search_type: str, limit: int) -> List[Dict[str, Any]]:
+        """执行AI智能搜索，基于博查AI AI Search API."""
         try:
             if not self.session:
                 self.session = aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=self.timeout),
-                    headers={
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                        "Accept": "application/json, text/plain, */*",
-                        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"
-                    }
+                    timeout=aiohttp.ClientTimeout(total=self.timeout)
                 )
             
-            # 构建AI搜索查询
-            query = self._build_ai_query(keywords, search_type)
+            # 构建API请求参数
+            params = {
+                "query": query,
+                "freshness": "noLimit",
+                "count": min(limit, self.api_config["ai_search"]["max_results"]),
+                "answer": self.api_config["ai_search"]["answer"],
+                "stream": self.api_config["ai_search"]["stream"]
+            }
             
-            # 尝试真实API调用
-            try:
-                real_results = await self._real_ai_search_api(query, limit)
-                if real_results:
-                    processed_results = self._process_ai_results(real_results)
-                    return processed_results
-            except Exception as e:
-                logger.warning(f"Real AI search API failed, using enhanced mock: {str(e)}")
+            # 根据搜索类型调整查询
+            if search_type == "patent":
+                params["query"] += " 专利技术分析"
+            elif search_type == "academic":
+                params["query"] += " 学术研究分析"
             
-            # 使用增强的模拟API调用
-            results = await self._enhanced_mock_ai_search_api(query, limit)
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
             
-            # 处理AI搜索结果
-            processed_results = self._process_ai_results(results)
-            
-            return processed_results
-            
+            async with self.session.post(
+                self.ai_search_url, 
+                json=params, 
+                headers=headers
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return self._parse_ai_search_response(data)
+                elif response.status == 401:
+                    logger.error("Bocha AI authentication failed - check API key")
+                    return await self._get_mock_ai_results(query, limit)
+                elif response.status == 429:
+                    logger.warning("Bocha AI rate limit exceeded")
+                    await asyncio.sleep(3)
+                    return await self._get_mock_ai_results(query, limit)
+                else:
+                    logger.error(f"Bocha AI AI search returned status {response.status}")
+                    return await self._get_mock_ai_results(query, limit)
+                    
         except Exception as e:
             logger.error(f"AI search failed: {str(e)}")
-            return []
+            return await self._get_mock_ai_results(query, limit)
     
     async def _real_ai_search_api(self, query: Dict[str, Any], limit: int) -> Optional[List[Dict[str, Any]]]:
         """尝试真实的博查AI智能搜索API调用."""
@@ -1756,47 +2207,325 @@ class BochaAIClient:
             return None
     
     def _parse_ai_search_response(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """解析AI搜索API响应."""
+        """解析AI搜索API响应，基于博查AI API格式."""
         results = []
         
-        # 处理不同的响应格式
-        analyses = data.get("analyses", []) or data.get("results", []) or data.get("insights", [])
-        
-        for analysis in analyses:
-            result = {
-                "title": analysis.get("title", ""),
-                "content": analysis.get("content", "") or analysis.get("analysis", ""),
-                "confidence": float(analysis.get("confidence", 0.5)),
-                "reasoning": analysis.get("reasoning", "") or analysis.get("explanation", ""),
-                "key_insights": analysis.get("key_insights", []) or analysis.get("insights", []),
-                "data_sources": analysis.get("data_sources", []) or analysis.get("sources", []),
-                "analysis_type": analysis.get("type", "ai_generated"),
-                "quality_score": float(analysis.get("quality", 0.5)),
-                "relevance_score": float(analysis.get("relevance", 0.5)),
-                "generated_at": analysis.get("generated_at", "") or analysis.get("timestamp", "")
-            }
-            results.append(result)
+        # 根据博查AI API文档解析响应
+        if data.get("code") == 200:
+            messages = data.get("messages", [])
+            
+            for message in messages:
+                if message.get("role") == "assistant":
+                    msg_type = message.get("type", "")
+                    content_type = message.get("content_type", "")
+                    content = message.get("content", "")
+                    
+                    if msg_type == "source":
+                        # 处理参考源
+                        if content_type == "webpage":
+                            try:
+                                import json
+                                webpage_data = json.loads(content) if isinstance(content, str) else content
+                                if isinstance(webpage_data, dict):
+                                    result = {
+                                        "title": webpage_data.get("name", ""),
+                                        "url": webpage_data.get("url", ""),
+                                        "content": webpage_data.get("snippet", ""),
+                                        "summary": webpage_data.get("summary", ""),
+                                        "source_domain": webpage_data.get("siteName", ""),
+                                        "content_type": "ai_webpage",
+                                        "relevance_score": 0.8,
+                                        "authority_score": 0.7,
+                                        "freshness_score": 0.6,
+                                        "source": "bocha_ai_search"
+                                    }
+                                    results.append(result)
+                            except:
+                                pass
+                        
+                        elif content_type in ["baike_pro", "medical_common", "weather_china"]:
+                            # 处理模态卡
+                            try:
+                                import json
+                                modal_data = json.loads(content) if isinstance(content, str) else content
+                                if isinstance(modal_data, list) and modal_data:
+                                    modal_item = modal_data[0]
+                                    result = {
+                                        "title": modal_item.get("name", f"{content_type}信息"),
+                                        "url": modal_item.get("url", ""),
+                                        "content": str(modal_item.get("modelCard", {}))[:500],
+                                        "summary": f"来自{content_type}的专业信息",
+                                        "content_type": f"modal_card_{content_type}",
+                                        "relevance_score": 0.9,
+                                        "authority_score": 0.8,
+                                        "freshness_score": 0.7,
+                                        "source": "bocha_modal_card"
+                                    }
+                                    results.append(result)
+                            except:
+                                pass
+                    
+                    elif msg_type == "answer" and content_type == "text":
+                        # 处理AI生成的答案
+                        result = {
+                            "title": "AI智能分析",
+                            "content": content,
+                            "summary": content[:200] + "..." if len(content) > 200 else content,
+                            "content_type": "ai_answer",
+                            "relevance_score": 0.95,
+                            "authority_score": 0.6,
+                            "freshness_score": 1.0,
+                            "source": "bocha_ai_answer"
+                        }
+                        results.append(result)
+                    
+                    elif msg_type == "follow_up":
+                        # 处理追问问题
+                        result = {
+                            "title": "相关问题",
+                            "content": f"您可能还想了解: {content}",
+                            "summary": content,
+                            "content_type": "follow_up",
+                            "relevance_score": 0.6,
+                            "authority_score": 0.4,
+                            "freshness_score": 1.0,
+                            "source": "bocha_follow_up"
+                        }
+                        results.append(result)
         
         return results
     
-    def _build_web_query(self, keywords: List[str], search_type: str) -> Dict[str, Any]:
-        """构建Web搜索查询."""
-        # 根据搜索类型调整查询策略
-        if search_type == "patent":
-            query_string = " ".join(keywords) + " 专利 技术 发明"
-        elif search_type == "academic":
-            query_string = " ".join(keywords) + " 研究 论文 学术"
-        elif search_type == "news":
-            query_string = " ".join(keywords) + " 最新 新闻 动态"
-        else:
-            query_string = " ".join(keywords)
+    async def _agent_search(self, query: str, search_type: str, limit: int) -> List[Dict[str, Any]]:
+        """执行Agent搜索，基于博查AI Agent Search API."""
+        try:
+            if not self.session:
+                self.session = aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=self.timeout)
+                )
+            
+            # 根据搜索类型选择合适的Agent
+            agent_id = self._select_agent_by_type(search_type)
+            if not agent_id:
+                return []
+            
+            # 构建API请求参数
+            params = {
+                "agentId": agent_id,
+                "query": query,
+                "searchType": "neural",  # 使用自然语言搜索
+                "answer": False,  # 暂时不返回AI答案
+                "stream": False
+            }
+            
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            async with self.session.post(
+                self.agent_search_url, 
+                json=params, 
+                headers=headers
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return self._parse_agent_search_response(data, agent_id)
+                elif response.status == 401:
+                    logger.error("Bocha AI authentication failed for agent search")
+                    return []
+                elif response.status == 429:
+                    logger.warning("Bocha AI rate limit exceeded for agent search")
+                    await asyncio.sleep(2)
+                    return []
+                else:
+                    logger.error(f"Bocha AI agent search returned status {response.status}")
+                    return []
+                    
+        except Exception as e:
+            logger.error(f"Agent search failed: {str(e)}")
+            return []
+    
+    def _select_agent_by_type(self, search_type: str) -> Optional[str]:
+        """根据搜索类型选择合适的Agent，优化版本."""
+        available_agents = self.api_config["agent_search"]["available_agents"]
         
-        return {
-            "query": query_string,
-            "regions": self.api_config["web_search"]["regions"],
-            "content_types": self.api_config["web_search"]["content_types"],
-            "max_results": self.api_config["web_search"]["max_results"]
-        }
+        # 直接从配置中获取Agent映射
+        selected_agent = available_agents.get(search_type)
+        
+        if selected_agent:
+            self.logger.debug(f"为搜索类型 '{search_type}' 选择Agent: {selected_agent}")
+            return selected_agent
+        
+        # 如果没有找到精确匹配，使用默认Agent
+        default_agent = available_agents.get("general", "bocha-scholar-agent")
+        self.logger.debug(f"搜索类型 '{search_type}' 未找到专用Agent，使用默认: {default_agent}")
+        
+        return default_agent
+    
+    def _parse_agent_search_response(self, data: Dict[str, Any], agent_id: str) -> List[Dict[str, Any]]:
+        """解析Agent搜索API响应."""
+        results = []
+        
+        if data.get("code") == 200:
+            messages = data.get("messages", [])
+            
+            for message in messages:
+                if message.get("role") == "assistant" and message.get("type") == "source":
+                    content_type = message.get("content_type", "")
+                    content = message.get("content", "")
+                    
+                    try:
+                        import json
+                        if isinstance(content, str):
+                            content_data = json.loads(content)
+                        else:
+                            content_data = content
+                        
+                        if isinstance(content_data, list):
+                            for item in content_data:
+                                result = self._parse_agent_item(item, content_type, agent_id)
+                                if result:
+                                    results.append(result)
+                        elif isinstance(content_data, dict):
+                            result = self._parse_agent_item(content_data, content_type, agent_id)
+                            if result:
+                                results.append(result)
+                                
+                    except Exception as e:
+                        logger.debug(f"Failed to parse agent content: {str(e)}")
+        
+        return results
+    
+    def _parse_agent_item(self, item: Dict[str, Any], content_type: str, agent_id: str) -> Optional[Dict[str, Any]]:
+        """解析Agent搜索结果项."""
+        try:
+            if content_type == "restaurant" or content_type == "hotel" or content_type == "attraction":
+                # 地理位置相关结果，对专利搜索不太相关
+                return None
+            
+            # 通用解析
+            result = {
+                "title": item.get("name", "") or item.get("title", ""),
+                "content": item.get("metadata", {}).get("tag", "") or str(item.get("metadata", {}))[:300],
+                "url": item.get("url", ""),
+                "summary": f"来自{agent_id}的专业搜索结果",
+                "content_type": f"agent_{content_type}",
+                "relevance_score": 0.85,
+                "authority_score": 0.9,  # Agent搜索权威性较高
+                "freshness_score": 0.7,
+                "source": f"bocha_agent_{agent_id}",
+                "agent_metadata": item.get("metadata", {})
+            }
+            
+            return result
+            
+        except Exception as e:
+            logger.debug(f"Failed to parse agent item: {str(e)}")
+            return None
+    
+    async def _rerank_results(self, query: str, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """使用博查AI语义重排序API优化搜索结果."""
+        try:
+            if not results or len(results) <= 1:
+                return results
+            
+            if not self.session:
+                self.session = aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=self.timeout)
+                )
+            
+            # 准备文档列表
+            documents = []
+            for result in results:
+                doc_text = f"{result.get('title', '')} {result.get('content', '')} {result.get('summary', '')}"
+                documents.append(doc_text.strip())
+            
+            # 构建重排序请求
+            params = {
+                "model": self.api_config["rerank"]["model"],
+                "query": query,
+                "documents": documents,
+                "top_n": min(len(documents), self.api_config["rerank"]["top_n"]),
+                "return_documents": False  # 我们已经有原始文档
+            }
+            
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            async with self.session.post(
+                self.rerank_url, 
+                json=params, 
+                headers=headers
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return self._apply_rerank_results(results, data)
+                else:
+                    logger.warning(f"Rerank API failed with status {response.status}, using original order")
+                    return results
+                    
+        except Exception as e:
+            logger.error(f"Rerank failed: {str(e)}")
+            return results
+    
+    def _apply_rerank_results(self, original_results: List[Dict[str, Any]], rerank_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """应用重排序结果."""
+        try:
+            if rerank_data.get("code") != 200:
+                return original_results
+            
+            rerank_results = rerank_data.get("data", {}).get("results", [])
+            if not rerank_results:
+                return original_results
+            
+            # 按重排序结果重新排列
+            reordered_results = []
+            for rerank_item in rerank_results:
+                index = rerank_item.get("index", -1)
+                relevance_score = rerank_item.get("relevance_score", 0.5)
+                
+                if 0 <= index < len(original_results):
+                    result = original_results[index].copy()
+                    result["rerank_score"] = relevance_score
+                    result["relevance_score"] = max(result.get("relevance_score", 0.5), relevance_score)
+                    reordered_results.append(result)
+            
+            # 添加未被重排序的结果
+            reranked_indices = {item.get("index", -1) for item in rerank_results}
+            for i, result in enumerate(original_results):
+                if i not in reranked_indices:
+                    result_copy = result.copy()
+                    result_copy["rerank_score"] = 0.3  # 较低的重排序分数
+                    reordered_results.append(result_copy)
+            
+            return reordered_results
+            
+        except Exception as e:
+            logger.error(f"Failed to apply rerank results: {str(e)}")
+            return original_results
+    
+    def _calculate_freshness_score(self, date_str: str) -> float:
+        """计算时效性分数."""
+        try:
+            if not date_str:
+                return 0.5
+            
+            from datetime import datetime
+            current_year = datetime.now().year
+            
+            if "2024" in date_str or str(current_year) in date_str:
+                return 0.9
+            elif "2023" in date_str:
+                return 0.7
+            elif "2022" in date_str:
+                return 0.5
+            else:
+                return 0.3
+                
+        except Exception:
+            return 0.5
     
     def _build_ai_query(self, keywords: List[str], search_type: str) -> Dict[str, Any]:
         """构建AI搜索查询."""
@@ -2369,6 +3098,76 @@ class BochaAIClient:
         if self.session:
             await self.session.close()
             self.session = None
+    
+    async def __aenter__(self):
+        """异步上下文管理器入口."""
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """异步上下文管理器出口."""
+        if self.session:
+            await self.session.close()
+            self.session = None
+    
+    async def _simple_deduplicate_results(self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """简单去重算法，基于标题相似性."""
+        if not results:
+            return []
+        
+        deduplicated = []
+        seen_titles = set()
+        
+        for result in results:
+            title = result.get("title", "").lower().strip()
+            
+            # 生成标题的简化版本用于比较
+            title_words = set(title.split()[:5])  # 取前5个词
+            title_signature = "_".join(sorted(title_words))
+            
+            # 检查是否已存在相似标题
+            is_duplicate = False
+            for seen_sig in seen_titles:
+                # 简单的相似性检查
+                seen_words = set(seen_sig.split("_"))
+                common_words = title_words & seen_words
+                if len(common_words) >= min(3, len(title_words) * 0.7):
+                    is_duplicate = True
+                    break
+            
+            if not is_duplicate and title_signature:
+                seen_titles.add(title_signature)
+                deduplicated.append(result)
+        
+        return deduplicated
+    
+    def _simple_diversity_optimization(self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """简单的多样性优化."""
+        if len(results) <= 5:
+            return results
+        
+        # 按来源分组
+        source_groups = {}
+        for result in results:
+            source = result.get('search_source', result.get('source', 'unknown'))
+            if source not in source_groups:
+                source_groups[source] = []
+            source_groups[source].append(result)
+        
+        # 从每个来源选择最好的结果
+        diversified = []
+        max_per_source = max(1, len(results) // len(source_groups))
+        
+        for source, source_results in source_groups.items():
+            # 按质量分数排序
+            sorted_source_results = sorted(
+                source_results,
+                key=lambda x: x.get('quality_score', 0),
+                reverse=True
+            )
+            diversified.extend(sorted_source_results[:max_per_source])
+        
+        # 按总体质量分数排序
+        return sorted(diversified, key=lambda x: x.get('quality_score', 0), reverse=True)
 
 
 class SmartCrawler:
@@ -2936,3 +3735,98 @@ class SmartCrawler:
         if self.session:
             await self.session.close()
             self.session = None
+    
+    async def _get_mock_web_results(self, query: str, limit: int) -> List[Dict[str, Any]]:
+        """获取模拟Web搜索结果."""
+        mock_results = []
+        
+        for i in range(min(limit, 5)):
+            result = {
+                "title": f"关于'{query}'的网页搜索结果 {i+1}",
+                "url": f"https://example.com/search/{i+1}",
+                "content": f"这是关于{query}的详细信息。包含相关的技术资料和研究内容。",
+                "summary": f"关于{query}的摘要信息",
+                "source_domain": "example.com",
+                "content_type": "webpage",
+                "relevance_score": 0.6 - i * 0.1,
+                "authority_score": 0.5,
+                "freshness_score": 0.7,
+                "source": "mock_web_search",
+                "is_mock": True
+            }
+            mock_results.append(result)
+        
+        return mock_results
+    
+    async def _get_mock_ai_results(self, query: str, limit: int) -> List[Dict[str, Any]]:
+        """获取模拟AI搜索结果."""
+        mock_results = []
+        
+        for i in range(min(limit, 3)):
+            result = {
+                "title": f"AI分析: {query}",
+                "content": f"基于AI分析，{query}相关的技术发展趋势和应用前景值得关注。",
+                "summary": f"AI对{query}的智能分析",
+                "content_type": "ai_analysis",
+                "relevance_score": 0.8 - i * 0.1,
+                "authority_score": 0.6,
+                "freshness_score": 1.0,
+                "source": "mock_ai_search",
+                "is_mock": True
+            }
+            mock_results.append(result)
+        
+        return mock_results
+    
+    async def _get_fallback_results(self, keywords: List[str], search_type: str, limit: int) -> List[Dict[str, Any]]:
+        """获取降级搜索结果."""
+        query = " ".join(keywords)
+        
+        fallback_results = []
+        
+        # 基础降级结果
+        for i in range(min(limit, 3)):
+            result = {
+                "title": f"[降级搜索] {query} - 基础信息 {i+1}",
+                "url": f"https://fallback.local/{i+1}",
+                "content": f"由于搜索服务暂时不可用，这是关于{query}的基础信息。建议稍后重试。",
+                "summary": f"关于{query}的基础信息",
+                "content_type": "fallback",
+                "relevance_score": 0.3,
+                "authority_score": 0.2,
+                "freshness_score": 0.1,
+                "source": "fallback_search",
+                "is_fallback": True
+            }
+            fallback_results.append(result)
+        
+        return fallback_results
+    
+    async def _optimize_results(self, results: List[Dict[str, Any]], keywords: List[str]) -> List[Dict[str, Any]]:
+        """优化搜索结果（当重排序不可用时的备选方案）."""
+        if not results:
+            return []
+        
+        # 计算综合质量分数
+        for result in results:
+            relevance = result.get("relevance_score", 0.5)
+            authority = result.get("authority_score", 0.5)
+            freshness = result.get("freshness_score", 0.5)
+            
+            # 综合质量分数
+            quality_score = (
+                relevance * 0.4 +
+                authority * 0.3 +
+                freshness * 0.3
+            )
+            
+            result["quality_score"] = quality_score
+        
+        # 按质量分数排序
+        sorted_results = sorted(
+            results,
+            key=lambda x: x.get("quality_score", 0),
+            reverse=True
+        )
+        
+        return sorted_results

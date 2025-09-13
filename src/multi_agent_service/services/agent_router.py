@@ -61,6 +61,20 @@ class AgentRouter:
             IntentType.CUSTOMER_SUPPORT: 0.5,
             IntentType.GENERAL_INQUIRY: 0.3
         }
+        
+        # 性能优化：添加缓存机制
+        self._available_agents_cache = {}
+        self._cache_ttl = 60  # 缓存60秒
+        self._last_cache_update = 0
+        
+        # 路由统计
+        self._routing_stats = {
+            "total_routes": 0,
+            "successful_routes": 0,
+            "failed_routes": 0,
+            "cache_hits": 0,
+            "cache_misses": 0
+        }
 
     async def route_request(
         self, 

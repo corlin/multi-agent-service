@@ -14,12 +14,20 @@ from ...models.config import AgentConfig
 from ...models.enums import AgentType
 from ...services.model_client import BaseModelClient
 
+# 导入 PatentsView 相关模块
+from ...patent.services.patentsview_service import PatentsViewService
+from ...patent.config.patentsview_config import PatentsViewAPIConfig
+from ...patent.models.patentsview_data import PatentsViewSearchResult, PatentRecord
+from ...patent.models.requests import PatentAnalysisRequest
+
 
 logger = logging.getLogger(__name__)
 
 
 class PatentDataCollectionAgent(PatentBaseAgent):
-    """专利数据收集Agent，负责从多个数据源收集专利信息."""
+    """专利数据收集Agent，负责从PatentsView API收集专利信息."""
+    
+    agent_type = AgentType.PATENT_DATA_COLLECTION
     
     def __init__(self, config: AgentConfig, model_client: BaseModelClient):
         """初始化专利数据收集Agent."""
@@ -31,33 +39,35 @@ class PatentDataCollectionAgent(PatentBaseAgent):
             "collect", "gather", "fetch", "retrieve", "download", "import", "sync"
         ]
         
-        # 数据源配置
+        # 初始化 PatentsView 服务
+        self.patentsview_config = PatentsViewAPIConfig.from_env()
+        self.patentsview_service = None
+        
+        # 数据源配置 - 专注于 PatentsView API
         self.data_sources_config = {
-            'google_patents': {
-                'base_url': 'https://patents.google.com/api',
-                'rate_limit': 10,
-                'timeout': 30,
-                'enabled': True
-            },
-            'patent_public_api': {
-                'base_url': 'https://api.patentsview.org/patents/query',
+            'patentsview_api': {
+                'base_url': self.patentsview_config.base_url,
                 'rate_limit': 5,
-                'timeout': 30,
-                'enabled': True
-            },
-            'cnipa_api': {
-                'base_url': 'http://epub.cnipa.gov.cn/api',
-                'rate_limit': 3,
-                'timeout': 45,
-                'enabled': True
+                'timeout': self.patentsview_config.timeout,
+                'enabled': True,
+                'service_class': PatentsViewService
             }
         }
         
         # 数据质量配置
         self.quality_config = {
             "min_title_length": 5,
-            "required_fields": ["title", "application_number"],
+            "required_fields": ["patent_title", "patent_id"],
             "max_duplicates_ratio": 0.1
+        }
+        
+        # 初始化专利数据源
+        self._patent_data_sources = {}
+        self._patent_data_sources['patentsview_api'] = {
+            'enabled': True,
+            'priority': 1,
+            'rate_limit': 5,
+            'timeout': self.patentsview_config.timeout
         }
     
     async def can_handle_request(self, request: UserRequest) -> float:
@@ -94,10 +104,12 @@ class PatentDataCollectionAgent(PatentBaseAgent):
         """获取数据收集Agent的能力列表."""
         base_capabilities = await super().get_capabilities()
         collection_capabilities = [
-            "多数据源专利收集",
-            "Google Patents API集成",
-            "专利公开API集成",
-            "CNIPA数据源集成",
+            "PatentsView API 专利数据收集",
+            "多端点数据整合",
+            "专利基础信息收集",
+            "专利摘要和权利要求收集",
+            "专利权人和发明人信息收集",
+            "专利分类信息收集",
             "数据标准化和清洗",
             "数据去重和质量控制",
             "批量数据处理",
@@ -263,13 +275,16 @@ class PatentDataCollectionAgent(PatentBaseAgent):
             params["collection_type"] = "deep"
             params["quality_level"] = "high"
         
-        # 判断数据源偏好
+        # 判断数据源偏好 - 默认使用 PatentsView
         if "google" in content_lower:
             params["sources"] = ["google_patents"]
         elif "cnipa" in content_lower or "中国" in content_lower:
             params["sources"] = ["cnipa_api"]
-        elif "公开" in content_lower or "public" in content_lower:
-            params["sources"] = ["patent_public_api"]
+        elif "patentsview" in content_lower or "美国" in content_lower:
+            params["sources"] = ["patentsview_api"]
+        else:
+            # 默认使用 PatentsView API
+            params["sources"] = ["patentsview_api"]
         
         # 提取数量限制
         limit_match = re.search(r'(\d+).*?(个|条|件)', content)
@@ -306,31 +321,44 @@ class PatentDataCollectionAgent(PatentBaseAgent):
     
     async def _execute_data_collection(self, collection_params: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
         """执行数据收集."""
-        collection_tasks = []
-        
-        # 为每个数据源创建收集任务
-        for source in collection_params["sources"]:
-            if source in self.data_sources_config and self.data_sources_config[source]["enabled"]:
-                task = self._collect_from_source(source, collection_params)
-                collection_tasks.append((source, task))
-        
-        # 并行执行收集任务
         results = {}
-        completed_tasks = await asyncio.gather(
-            *[task for _, task in collection_tasks],
-            return_exceptions=True
-        )
         
-        # 处理结果
-        for i, (source, _) in enumerate(collection_tasks):
-            result = completed_tasks[i]
-            if isinstance(result, Exception):
-                self.logger.error(f"Collection failed for {source}: {str(result)}")
-                results[source] = []
-            else:
-                results[source] = result or []
+        # 初始化 PatentsView 服务
+        if not self.patentsview_service:
+            self.patentsview_service = PatentsViewService(
+                api_key=self.patentsview_config.api_key,
+                base_url=self.patentsview_config.base_url
+            )
         
-        return results
+        try:
+            # 使用 PatentsView API 进行数据收集
+            patentsview_data = await self._collect_from_patentsview(collection_params)
+            
+            # 转换为标准格式
+            patents_data = self._convert_patentsview_to_standard_format(patentsview_data)
+            results["patentsview_api"] = patents_data
+            
+            # 如果启用了其他数据源，可以在这里添加
+            for source in collection_params["sources"]:
+                if (source != "patentsview_api" and 
+                    source in self.data_sources_config and 
+                    self.data_sources_config[source]["enabled"]):
+                    
+                    # 为其他数据源保留原有的收集逻辑
+                    try:
+                        source_data = await self._collect_from_source(source, collection_params)
+                        results[source] = source_data or []
+                    except Exception as e:
+                        self.logger.error(f"Collection failed for {source}: {str(e)}")
+                        results[source] = []
+            
+            return results
+            
+        except Exception as e:
+            self.logger.error(f"PatentsView collection failed: {str(e)}")
+            # 如果 PatentsView 失败，返回空结果
+            results["patentsview_api"] = []
+            return results
     
     async def _collect_from_source(self, source: str, collection_params: Dict[str, Any]) -> List[Dict[str, Any]]:
         """从指定数据源收集数据."""
@@ -352,9 +380,115 @@ class PatentDataCollectionAgent(PatentBaseAgent):
             self.logger.error(f"Error collecting from {source}: {str(e)}")
             return []
     
+    async def _collect_from_patentsview(self, collection_params: Dict[str, Any]) -> Dict[str, Any]:
+        """从 PatentsView API 收集数据."""
+        try:
+            keywords = collection_params.get("keywords", [])
+            limit = collection_params.get("limit", 100)
+            date_range = collection_params.get("date_range")
+            
+            self.logger.info(f"Collecting from PatentsView with keywords: {keywords}, limit: {limit}")
+            
+            # 构建搜索查询
+            query = await self._build_patentsview_query(keywords, date_range)
+            
+            # 执行多个搜索任务
+            search_tasks = []
+            
+            # 基础专利搜索
+            search_tasks.append(self._search_patents_direct(query, limit))
+            
+            # 专利文本搜索
+            search_tasks.append(self._search_patent_texts_direct(query))
+            
+            # 执行并行搜索
+            results = await asyncio.gather(*search_tasks, return_exceptions=True)
+            
+            # 整合搜索结果
+            integrated_data = await self._integrate_patentsview_results(results)
+            
+            self.logger.info(f"Collected {len(integrated_data.get('patents', []))} patents from PatentsView")
+            return integrated_data
+            
+        except Exception as e:
+            self.logger.error(f"Error collecting from PatentsView: {str(e)}")
+            # 返回空的结果
+            return {"patents": [], "patent_texts": {"summaries": [], "claims": []}, "errors": [str(e)]}
+    
+    def _convert_patentsview_to_standard_format(self, integrated_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """将 PatentsView 搜索结果转换为标准格式."""
+        standard_patents = []
+        
+        try:
+            patents = integrated_data.get("patents", [])
+            patent_texts = integrated_data.get("patent_texts", {})
+            summaries = patent_texts.get("summaries", [])
+            claims = patent_texts.get("claims", [])
+            
+            # 创建摘要和权利要求的字典
+            summary_dict = {summary.get("patent_id"): summary.get("summary_text", "") 
+                          for summary in summaries if summary.get("patent_id")}
+            
+            claims_dict = {}
+            for claim in claims:
+                patent_id = claim.get("patent_id")
+                if patent_id:
+                    if patent_id not in claims_dict:
+                        claims_dict[patent_id] = []
+                    claims_dict[patent_id].append({
+                        "sequence": claim.get("claim_sequence", 0),
+                        "text": claim.get("claim_text", "")
+                    })
+            
+            for patent in patents:
+                # 转换为标准格式
+                patent_id = patent.get("patent_id", "")
+                standard_patent = {
+                    "patent_id": patent_id,
+                    "patent_number": patent.get("patent_number") or patent_id,
+                    "title": patent.get("patent_title") or "未知标题",
+                    "abstract": patent.get("patent_abstract") or "",
+                    "applicants": [patent.get("assignee_organization")] if patent.get("assignee_organization") else [],
+                    "inventors": [],
+                    "application_date": patent.get("patent_date") or "",
+                    "publication_date": patent.get("patent_date") or "",
+                    "ipc_classes": [patent.get("ipc_class")] if patent.get("ipc_class") else [],
+                    "cpc_classes": [patent.get("cpc_class")] if patent.get("cpc_class") else [],
+                    "country": patent.get("assignee_country") or "US",
+                    "status": "已公开",
+                    "source": "patentsview_api",
+                    "collected_at": datetime.now().isoformat(),
+                    "patent_type": patent.get("patent_type") or "utility"
+                }
+                
+                # 添加发明人信息
+                first_name = patent.get("inventor_name_first", "")
+                last_name = patent.get("inventor_name_last", "")
+                if first_name or last_name:
+                    inventor_name = f"{first_name} {last_name}".strip()
+                    if inventor_name:
+                        standard_patent["inventors"] = [inventor_name]
+                
+                # 添加摘要文本
+                if patent_id in summary_dict:
+                    standard_patent["summary_text"] = summary_dict[patent_id]
+                
+                # 添加权利要求
+                if patent_id in claims_dict:
+                    standard_patent["claims"] = claims_dict[patent_id]
+                
+                standard_patents.append(standard_patent)
+            
+            self.logger.info(f"Converted {len(standard_patents)} patents to standard format")
+            return standard_patents
+            
+        except Exception as e:
+            self.logger.error(f"Error converting PatentsView data: {str(e)}")
+            return []
+    
     async def _fetch_from_source(self, source: str, keywords: List[str], limit: int) -> List[Dict[str, Any]]:
-        """从数据源获取数据（模拟实现）."""
-        # 这里是模拟实现，实际中会调用真实的API
+        """从其他数据源获取数据（保留原有模拟实现作为后备）."""
+        # 这里保留原有的模拟实现作为其他数据源的后备
         
         self.logger.info(f"Fetching data from {source} with keywords: {keywords}")
         
@@ -381,7 +515,8 @@ class PatentDataCollectionAgent(PatentBaseAgent):
             day = random.randint(1, 28)
             
             patent = {
-                "application_number": f"{source.upper()}{year}{i:04d}",
+                "patent_id": f"{source.upper()}{year}{i:04d}",
+                "patent_number": f"{source.upper()}{year}{i:04d}",
                 "title": f"关于{keywords[0] if keywords else '技术'}的{random.choice(['方法', '系统', '装置'])} - {source}",
                 "abstract": f"本发明涉及{keywords[0] if keywords else '技术'}领域，来源于{source}数据库...",
                 "applicants": [random.choice(applicants)],
@@ -468,15 +603,86 @@ class PatentDataCollectionAgent(PatentBaseAgent):
     
     def _generate_patent_signature(self, patent: Dict[str, Any]) -> str:
         """生成专利签名用于去重."""
-        # 使用申请号和标题的组合作为签名
-        app_number = patent.get("application_number", "").strip().lower()
+        # 使用专利ID/专利号和标题的组合作为签名
+        patent_id = patent.get("patent_id", "").strip().lower()
+        patent_number = patent.get("patent_number", "").strip().lower()
         title = patent.get("title", "").strip().lower()
+        
+        # 优先使用专利ID，其次是专利号
+        identifier = patent_id or patent_number
         
         # 标准化标题（移除常见的变化）
         title = re.sub(r'[^\w\s]', '', title)  # 移除标点符号
         title = re.sub(r'\s+', ' ', title)     # 标准化空格
         
-        return f"{app_number}|{title}"
+        return f"{identifier}|{title}"
+    
+    def validate_patent_data(self, patent: Dict[str, Any]) -> bool:
+        """验证专利数据的有效性."""
+        try:
+            # 检查必需字段
+            required_fields = self.quality_config["required_fields"]
+            for field in required_fields:
+                if not patent.get(field):
+                    return False
+            
+            # 检查标题长度
+            title = patent.get("title", "")
+            if len(title) < self.quality_config["min_title_length"]:
+                return False
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error validating patent data: {str(e)}")
+            return False
+    
+    def clean_patent_data(self, patent: Dict[str, Any]) -> Dict[str, Any]:
+        """清洗专利数据."""
+        try:
+            cleaned_patent = patent.copy()
+            
+            # 清理标题
+            if "title" in cleaned_patent:
+                title = cleaned_patent["title"].strip()
+                # 移除多余的空格
+                title = re.sub(r'\s+', ' ', title)
+                cleaned_patent["title"] = title
+            
+            # 清理摘要
+            if "abstract" in cleaned_patent:
+                abstract = cleaned_patent["abstract"].strip()
+                # 移除多余的空格和换行
+                abstract = re.sub(r'\s+', ' ', abstract)
+                cleaned_patent["abstract"] = abstract
+            
+            # 标准化日期格式
+            for date_field in ["application_date", "publication_date"]:
+                if date_field in cleaned_patent and cleaned_patent[date_field]:
+                    try:
+                        # 尝试解析和标准化日期
+                        date_str = cleaned_patent[date_field]
+                        if isinstance(date_str, str) and len(date_str) >= 10:
+                            # 保持 YYYY-MM-DD 格式
+                            cleaned_patent[date_field] = date_str[:10]
+                    except Exception:
+                        pass
+            
+            # 确保列表字段是列表
+            list_fields = ["applicants", "inventors", "ipc_classes", "cpc_classes"]
+            for field in list_fields:
+                if field in cleaned_patent:
+                    if not isinstance(cleaned_patent[field], list):
+                        if cleaned_patent[field]:
+                            cleaned_patent[field] = [cleaned_patent[field]]
+                        else:
+                            cleaned_patent[field] = []
+            
+            return cleaned_patent
+            
+        except Exception as e:
+            self.logger.error(f"Error cleaning patent data: {str(e)}")
+            return patent
     
     def _calculate_data_quality(self, patents: List[Dict[str, Any]]) -> float:
         """计算数据质量分数."""
@@ -559,7 +765,8 @@ class PatentDataCollectionAgent(PatentBaseAgent):
                 for i, patent in enumerate(patents[:3]):  # 显示前3个样本
                     response_parts.append(f"**样本 {i+1}:**")
                     response_parts.append(f"- 标题: {patent.get('title', 'N/A')}")
-                    response_parts.append(f"- 申请号: {patent.get('application_number', 'N/A')}")
+                    response_parts.append(f"- 专利号: {patent.get('patent_number', 'N/A')}")
+                    response_parts.append(f"- 专利ID: {patent.get('patent_id', 'N/A')}")
                     response_parts.append(f"- 申请人: {', '.join(patent.get('applicants', ['N/A']))}")
                     response_parts.append(f"- 申请日期: {patent.get('application_date', 'N/A')}")
                     response_parts.append("")
@@ -646,3 +853,189 @@ class PatentDataCollectionAgent(PatentBaseAgent):
         except Exception as e:
             self.logger.error(f"Error generating collection actions: {str(e)}")
             return []
+    
+    async def cleanup(self):
+        """清理资源."""
+        try:
+            if self.patentsview_service:
+                await self.patentsview_service.cleanup()
+                self.patentsview_service = None
+            
+            # 调用父类清理方法
+            await super().cleanup()
+            
+        except Exception as e:
+            self.logger.error(f"Error during cleanup: {str(e)}")
+    
+    async def _build_patentsview_query(self, keywords: List[str], date_range: Optional[Dict[str, int]]) -> Dict[str, Any]:
+        """构建 PatentsView API 搜索查询."""
+        query = {}
+        
+        # 关键词查询
+        if keywords:
+            keyword_conditions = []
+            for keyword in keywords:
+                keyword_conditions.append({
+                    "_text_any": {
+                        "patent_title": keyword,
+                        "patent_abstract": keyword
+                    }
+                })
+            
+            if len(keyword_conditions) == 1:
+                query.update(keyword_conditions[0])
+            else:
+                query["_or"] = keyword_conditions
+        
+        # 日期范围
+        if date_range:
+            date_condition = {}
+            if date_range.get("start_year"):
+                date_condition["_gte"] = f"{date_range['start_year']}-01-01"
+            if date_range.get("end_year"):
+                date_condition["_lte"] = f"{date_range['end_year']}-12-31"
+            
+            if date_condition:
+                query["patent_date"] = date_condition
+        
+        return query
+    
+    async def _search_patents_direct(self, query: Dict[str, Any], max_results: int = 1000) -> Dict[str, Any]:
+        """直接搜索专利基础信息."""
+        try:
+            endpoint = "/patent/"
+            
+            # 构建请求参数
+            params = {
+                'q': json.dumps(query),
+                'f': json.dumps([
+                    "patent_id", "patent_number", "patent_title", 
+                    "patent_abstract", "patent_date", "patent_type",
+                    "assignee_organization", "assignee_country",
+                    "inventor_name_first", "inventor_name_last",
+                    "ipc_class", "cpc_class"
+                ]),
+                'o': json.dumps({
+                    "size": min(max_results, 1000),
+                    "pad_patent_id": False
+                }),
+                's': json.dumps([{"patent_date": "desc"}])
+            }
+            
+            response_data = await self._make_patentsview_request(endpoint, params)
+            
+            return {
+                "type": "patents",
+                "data": response_data.get("patents", []),
+                "total_count": response_data.get("total_patent_count", 0)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error searching patents: {str(e)}")
+            return {"type": "patents", "data": [], "error": str(e)}
+    
+    async def _search_patent_texts_direct(self, query: Dict[str, Any]) -> Dict[str, Any]:
+        """直接搜索专利文本信息."""
+        try:
+            # 搜索专利摘要
+            summary_endpoint = "/g_brf_sum_text/"
+            summary_params = {
+                'q': json.dumps(query),
+                'f': json.dumps(["patent_id", "summary_text"]),
+                'o': json.dumps({"size": 100})
+            }
+            
+            summary_data = await self._make_patentsview_request(summary_endpoint, summary_params)
+            
+            # 搜索权利要求
+            claims_endpoint = "/g_claim/"
+            claims_params = {
+                'q': json.dumps(query),
+                'f': json.dumps(["patent_id", "claim_sequence", "claim_text"]),
+                'o': json.dumps({"size": 200})
+            }
+            
+            claims_data = await self._make_patentsview_request(claims_endpoint, claims_params)
+            
+            return {
+                "type": "patent_texts",
+                "summaries": summary_data.get("g_brf_sum_texts", []),
+                "claims": claims_data.get("g_claims", [])
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error searching patent texts: {str(e)}")
+            return {"type": "patent_texts", "summaries": [], "claims": [], "error": str(e)}
+    
+    async def _make_patentsview_request(self, endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """发起 PatentsView API 请求."""
+        url = f"{self.patentsview_config.base_url}{endpoint}"
+        
+        headers = {
+            'Content-Type': 'application/json',
+            'User-Agent': 'PatentDataCollectionAgent/1.0'
+        }
+        
+        # 添加 API 密钥（如果有）
+        if self.patentsview_config.api_key:
+            headers['X-API-Key'] = self.patentsview_config.api_key
+        
+        # 重试机制
+        for attempt in range(self.patentsview_config.max_retries):
+            try:
+                timeout = aiohttp.ClientTimeout(total=self.patentsview_config.timeout)
+                async with aiohttp.ClientSession(timeout=timeout) as session:
+                    
+                    # 使用 POST 请求发送复杂查询
+                    async with session.post(url, json=params, headers=headers) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            return data
+                        elif response.status == 429:
+                            # 速率限制，等待后重试
+                            wait_time = self.patentsview_config.rate_limit_delay * (2 ** attempt)
+                            await asyncio.sleep(wait_time)
+                            continue
+                        else:
+                            error_text = await response.text()
+                            raise Exception(f"API request failed with status {response.status}: {error_text}")
+            
+            except asyncio.TimeoutError:
+                if attempt == self.patentsview_config.max_retries - 1:
+                    raise Exception("API request timeout after all retries")
+                await asyncio.sleep(self.patentsview_config.rate_limit_delay)
+            
+            except Exception as e:
+                if attempt == self.patentsview_config.max_retries - 1:
+                    raise e
+                await asyncio.sleep(self.patentsview_config.rate_limit_delay)
+        
+        raise Exception("API request failed after all retries")
+    
+    async def _integrate_patentsview_results(self, results: List[Any]) -> Dict[str, Any]:
+        """整合 PatentsView 搜索结果."""
+        integrated_data = {
+            "patents": [],
+            "patent_texts": {"summaries": [], "claims": []},
+            "errors": []
+        }
+        
+        for result in results:
+            if isinstance(result, Exception):
+                integrated_data["errors"].append(str(result))
+                continue
+            
+            if isinstance(result, dict):
+                result_type = result.get("type")
+                
+                if result_type == "patents":
+                    integrated_data["patents"] = result.get("data", [])
+                elif result_type == "patent_texts":
+                    integrated_data["patent_texts"]["summaries"] = result.get("summaries", [])
+                    integrated_data["patent_texts"]["claims"] = result.get("claims", [])
+                
+                # 记录错误
+                if "error" in result:
+                    integrated_data["errors"].append(result["error"])
+        
+        return integrated_data

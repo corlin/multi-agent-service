@@ -18,12 +18,17 @@ class Settings(BaseSettings):
     qwen_api_key: Optional[str] = Field(default=None, alias="QWEN_API_KEY")
     deepseek_api_key: Optional[str] = Field(default=None, alias="DEEPSEEK_API_KEY")
     glm_api_key: Optional[str] = Field(default=None, alias="GLM_API_KEY")
+    bocha_ai_api_key: Optional[str] = Field(default=None, alias="BOCHA_AI_API_KEY")
     
     # Model Service URLs
     openai_api_url: str = Field(default="https://api.openai.com/v1", alias="OPENAI_API_URL")
     qwen_api_url: str = Field(default="https://dashscope.aliyuncs.com/compatible-mode/v1", alias="QWEN_API_URL")
     deepseek_api_url: str = Field(default="https://api.deepseek.com/v1", alias="DEEPSEEK_API_URL")
     glm_api_url: str = Field(default="https://open.bigmodel.cn/api/paas/v4", alias="GLM_API_URL")
+    
+    # Patent API Configuration
+    patent_view_api_key: Optional[str] = Field(default=None, alias="PATENT_VIEW_API_KEY")
+    patent_view_base_url: str = Field(default="https://search.patentsview.org/api/v1", alias="PATENT_VIEW_BASE_URL")
     
     # Logging Configuration
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")

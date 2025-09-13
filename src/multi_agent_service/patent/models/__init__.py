@@ -1,1 +1,53 @@
 """专利数据模型."""
+
+from .patentsview_data import (
+    PatentRecord,
+    PatentSummary,
+    PatentClaim,
+    PatentDescription,
+    PatentDrawingDescription,
+    PublicationRecord,
+    AssigneeRecord,
+    InventorRecord,
+    CPCClass,
+    CPCSubclass,
+    CPCGroup,
+    IPCClass,
+    USPCMainClass,
+    USPCSubClass,
+    WIPOClass,
+    ForeignCitation,
+    USApplicationCitation,
+    USPatentCitation,
+    OtherReference,
+    LocationRecord,
+    PatentsViewSearchResult,
+    PatentsViewAPIResponse,
+    PatentsViewQuery
+)
+
+__all__ = [
+    "PatentRecord",
+    "PatentSummary", 
+    "PatentClaim",
+    "PatentDescription",
+    "PatentDrawingDescription",
+    "PublicationRecord",
+    "AssigneeRecord",
+    "InventorRecord",
+    "CPCClass",
+    "CPCSubclass",
+    "CPCGroup",
+    "IPCClass",
+    "USPCMainClass",
+    "USPCSubClass",
+    "WIPOClass",
+    "ForeignCitation",
+    "USApplicationCitation",
+    "USPatentCitation",
+    "OtherReference",
+    "LocationRecord",
+    "PatentsViewSearchResult",
+    "PatentsViewAPIResponse",
+    "PatentsViewQuery"
+]

@@ -355,21 +355,38 @@ class ModelRouter:
         """
         health_status = {}
         
+        # 限制并发数量，避免过多并发请求
+        semaphore = asyncio.Semaphore(5)  # 最多5个并发健康检查
+        
+        async def check_with_semaphore(client_id: str, client: BaseModelClient):
+            async with semaphore:
+                return await self._check_client_health(client_id, client)
+        
         # 并发检查所有客户端
         tasks = []
         for client_id, client in self.clients.items():
-            task = asyncio.create_task(self._check_client_health(client_id, client))
-            tasks.append(task)
+            task = asyncio.create_task(check_with_semaphore(client_id, client))
+            tasks.append((client_id, task))
         
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        for i, (client_id, _) in enumerate(self.clients.items()):
-            result = results[i]
-            if isinstance(result, Exception):
+        # 设置超时时间，避免长时间等待
+        try:
+            results = await asyncio.wait_for(
+                asyncio.gather(*[task for _, task in tasks], return_exceptions=True),
+                timeout=30.0  # 30秒超时
+            )
+            
+            for i, (client_id, _) in enumerate(tasks):
+                result = results[i]
+                if isinstance(result, Exception):
+                    health_status[client_id] = False
+                    logger.debug(f"Health check failed for {client_id}: {str(result)}")
+                else:
+                    health_status[client_id] = result
+                    
+        except asyncio.TimeoutError:
+            logger.warning("Health check timeout, marking all clients as unhealthy")
+            for client_id, _ in tasks:
                 health_status[client_id] = False
-                logger.error(f"Health check failed for {client_id}: {str(result)}")
-            else:
-                health_status[client_id] = result
         
         return health_status
     
@@ -385,9 +402,13 @@ class ModelRouter:
                     logger.debug(f"Client {client_id} in cooldown period, skipping health check")
                     return False
             
-            return await client.health_check()
+            # 添加超时控制
+            return await asyncio.wait_for(client.health_check(), timeout=5.0)
+        except asyncio.TimeoutError:
+            logger.debug(f"Health check timeout for {client_id}")
+            return False
         except Exception as e:
-            logger.warning(f"Health check error for {client_id}: {str(e)}")
+            logger.debug(f"Health check error for {client_id}: {str(e)}")
             return False
     
     def get_metrics(self) -> Dict[str, Dict]:
